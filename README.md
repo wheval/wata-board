@@ -80,13 +80,17 @@ VITE_RPC_URL=https://soroban-testnet.stellar.org
 ```
 
 ### Dapp (.env)
-```
-SECRET_KEY=your_secret_key_here
+```bash
+# Stellar secret key for the admin account
+# This key controls access to administrative functions of the smart contract
+ADMIN_SECRET_KEY=your_stellar_secret_key_here
+
+# Contract configuration
 CONTRACT_ID=CDRRJ7IPYDL36YSK5ZQLBG3LICULETIBXX327AGJQNTWXNKY2UMDO4DA
 RPC_URL=https://soroban-testnet.stellar.org
 ```
 
-⚠️ **Security**: Never commit `.env` files with real keys to git!
+⚠️ **Security**: Never commit `.env` files with real keys to git! Use `.env.example` as a template and create your own `.env` file.
 
 ## Testing
 
@@ -109,6 +113,33 @@ npm run build
 
 # Output will be in dist/ folder
 ```
+
+## Security
+
+### Environment Variable Management
+
+This project uses environment variables to manage sensitive configuration data like secret keys. The following security measures have been implemented:
+
+- ✅ **No hardcoded secrets**: All secret keys are loaded from environment variables
+- ✅ **Environment validation**: The application validates that required environment variables are set
+- ✅ **Git protection**: `.env` files are excluded from version control via `.gitignore`
+- ✅ **Template provided**: `.env.example` shows required variables without exposing actual secrets
+
+### Setup Instructions
+
+1. Copy the environment template:
+   ```bash
+   cp wata-board-dapp/.env.example wata-board-dapp/.env
+   ```
+
+2. Edit `.env` with your actual secret key:
+   ```bash
+   ADMIN_SECRET_KEY=your_actual_stellar_secret_key_here
+   ```
+
+3. Ensure `.env` is never committed to git (automatically handled by `.gitignore`)
+
+⚠️ **Critical**: Never share your secret key or commit it to version control. Anyone with access to the secret key can control administrative functions of the smart contract.
 
 ## CI/CD Pipeline
 
