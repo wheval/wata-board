@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import https from 'https';
+import fs from 'fs';
 import { PaymentService, PaymentRequest } from './payment-service';
 import { RateLimiter, RateLimitConfig } from './rate-limiter';
 
@@ -22,8 +24,24 @@ const paymentService = new PaymentService(RATE_LIMIT_CONFIG);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
+// Security middleware with enhanced HTTPS support
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://stellar.org"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://api.yourdomain.com", "https://soroban-testnet.stellar.org", "https://soroban.stellar.org"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
 
 // CORS configuration with environment-based settings
 const corsOptions: cors.CorsOptions = {
@@ -317,13 +335,48 @@ function getNetworkConfig() {
   }
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Wata-Board API Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Network: ${process.env.NETWORK || 'testnet'}`);
-  console.log(`🔒 CORS enabled for origins: ${getAllowedOrigins().join(', ')}`);
-  console.log(`⏱️  Rate limit: ${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`);
-});
+// Start server with HTTPS support
+function startServer() {
+  const httpsEnabled = process.env.HTTPS_ENABLED === 'true';
+  const nodeEnv = process.env.NODE_ENV || 'development';
+
+  if (httpsEnabled && nodeEnv === 'production') {
+    // HTTPS configuration for production
+    const sslOptions = {
+      key: fs.readFileSync(process.env.SSL_KEY_PATH || '/etc/letsencrypt/live/yourdomain.com/privkey.pem'),
+      cert: fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/letsencrypt/live/yourdomain.com/fullchain.pem'),
+      ca: fs.readFileSync(process.env.SSL_CA_PATH || '/etc/letsencrypt/live/yourdomain.com/chain.pem')
+    };
+
+    // Create HTTPS server
+    https.createServer(sslOptions, app).listen(443, () => {
+      console.log('� HTTPS Server running on port 443');
+      console.log(`📝 Environment: ${nodeEnv}`);
+      console.log(`🌐 Network: ${process.env.NETWORK || 'testnet'}`);
+      console.log(`🔒 CORS enabled for origins: ${getAllowedOrigins().join(', ')}`);
+      console.log(`⏱️  Rate limit: ${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`);
+    });
+
+    // Redirect HTTP to HTTPS
+    const httpApp = express();
+    httpApp.use((req, res) => {
+      res.redirect(301, `https://${req.headers.host}${req.url}`);
+    });
+    httpApp.listen(80, () => {
+      console.log('🔄 HTTP redirect server running on port 80');
+    });
+  } else {
+    // Development HTTP server
+    app.listen(PORT, () => {
+      console.log(`🚀 Wata-Board API Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${nodeEnv}`);
+      console.log(`🌐 Network: ${process.env.NETWORK || 'testnet'}`);
+      console.log(`🔒 CORS enabled for origins: ${getAllowedOrigins().join(', ')}`);
+      console.log(`⏱️  Rate limit: ${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`);
+    });
+  }
+}
+
+startServer();
 
 export default app;

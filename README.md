@@ -74,6 +74,74 @@ npm start    # Production server
 
 The backend now runs as an Express.js server on `http://localhost:3001` with CORS configuration enabled.
 
+## SSL/HTTPS Configuration
+
+This project includes comprehensive SSL/HTTPS configuration for secure production deployments.
+
+### Features
+
+- ✅ **Let's Encrypt Integration**: Automated free SSL certificate generation
+- ✅ **Nginx Reverse Proxy**: SSL termination with security headers
+- ✅ **Certificate Management**: Automated renewal and monitoring
+- ✅ **Security Headers**: HSTS, CSP, and other security protections
+- ✅ **Docker Support**: Complete SSL-enabled Docker deployment
+
+### Quick SSL Setup
+
+1. **Generate SSL Certificates**:
+   ```bash
+   # Run the automated SSL setup script
+   sudo chmod +x scripts/ssl-setup.sh
+   sudo ./scripts/ssl-setup.sh
+   ```
+
+2. **Deploy with SSL**:
+   ```bash
+   # Deploy the application with SSL configuration
+   sudo chmod +x scripts/deploy-ssl.sh
+   sudo ./scripts/deploy-ssl.sh
+   ```
+
+3. **Update Environment Variables**:
+   ```bash
+   # Backend (.env)
+   HTTPS_ENABLED=true
+   SSL_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+   SSL_CERT_PATH=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+   SSL_CA_PATH=/etc/letsencrypt/live/yourdomain.com/chain.pem
+
+   # Frontend (.env)
+   VITE_API_URL=https://api.yourdomain.com
+   VITE_FRONTEND_URL=https://yourdomain.com
+   ```
+
+### SSL Configuration Options
+
+#### Option 1: Let's Encrypt (Recommended)
+- Free, automated certificates
+- 90-day validity with auto-renewal
+- Production-ready security
+
+#### Option 2: Custom Certificates
+- Use your own SSL certificates
+- Manual renewal process
+- Suitable for enterprise environments
+
+#### Option 3: Cloud Provider SSL
+- AWS Certificate Manager
+- Google Cloud SSL
+- Azure App Service SSL
+
+### Security Features
+
+- **HTTP to HTTPS Redirect**: All traffic automatically redirected to HTTPS
+- **HSTS**: HTTP Strict Transport Security for long-term protection
+- **Security Headers**: Comprehensive security header configuration
+- **Certificate Monitoring**: Automated expiry warnings and renewal
+- **Rate Limiting**: Enhanced rate limiting with SSL support
+
+For detailed SSL configuration instructions, see [SSL_CONFIGURATION.md](./SSL_CONFIGURATION.md).
+
 ## CORS Configuration
 
 This project includes comprehensive CORS (Cross-Origin Resource Sharing) configuration to support cross-domain deployments and external integrations.
