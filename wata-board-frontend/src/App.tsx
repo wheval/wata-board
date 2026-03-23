@@ -1,9 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import * as NepaClient from './contracts';
-import { NetworkSwitcher } from './components/NetworkSwitcher';
-import { getCurrentNetworkConfig } from './utils/network-config';
+main
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Rate from './pages/Rate';
@@ -41,10 +40,7 @@ function Home() {
   const [meterId, setMeterId] = useState('');
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState('');
-  
-  // Get current network configuration for display
-  const networkConfig = getCurrentNetworkConfig();
-  const isMainnet = !networkConfig.networkPassphrase.includes('Test');
+
 
   const handlePayment = async () => {
     if (!(await isConnected())) {
@@ -75,37 +71,25 @@ function Home() {
         return;
       }
 
-      setStatus("Connecting to wallet...");
-      await requestAccess();
 
-      // Get current network configuration
-      const client = new NepaClient.Client({
-        networkPassphrase: networkConfig.networkPassphrase,
-        contractId: networkConfig.contractId,
-        rpcUrl: networkConfig.rpcUrl,
-      });
-
-      setStatus('Preparing transaction... Please approve in Freighter.');
-
-      const tx = await client.pay_bill({
-        meter_id: meterId.trim(),
-        amount: amountU32,
-      });
-
-      await tx.signAndSend({
-        signTransaction: async (transactionXdr: string) => {
-          const networkName = networkConfig.networkPassphrase.includes('Test') ? 'TESTNET' : 'PUBLIC';
-          const signedTx = await signTransaction(transactionXdr, { network: networkName });
-          return signedTx as string;
-        },
-      });
-
-      setStatus(`Success! Payment confirmed for ${meterId.trim()}.`);
     } catch (err: any) {
       console.error(err);
       setStatus(`Payment failed: ${err?.message || 'Check console.'}`);
     }
   };
+
+  const formatTimeUntilReset = (ms: number): string => {
+    const seconds = Math.ceil(ms / 1000);
+    return `${seconds}s`;
+  };
+
+  const getPaymentButtonState = () => {
+    if (paymentRateLimit.isProcessing) return { disabled: true, text: 'Processing...', className: 'bg-gray-500' };
+    if (!paymentRateLimit.canMakeRequest) return { disabled: true, text: 'Rate Limited', className: 'bg-gray-500' };
+    return { disabled: false, text: 'Pay bill', className: 'bg-sky-500 hover:bg-sky-400' };
+  };
+
+  const buttonState = getPaymentButtonState();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -115,7 +99,7 @@ function Home() {
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">Wata-Board</h1>
               <p className="mt-2 max-w-prose text-sm text-slate-300">
-                Decentralized utility payments on Stellar ({isMainnet ? 'Mainnet' : 'Testnet'}).
+
               </p>
             </div>
             <div className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
@@ -127,6 +111,24 @@ function Home() {
             </div>
           </div>
 
+          {/* Rate Limit Status */}
+          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Rate Limit Status</div>
+            <div className="mt-2 flex items-center justify-between">
+              <div className="text-sm text-slate-100">
+                {paymentRateLimit.canMakeRequest 
+                  ? `${paymentRateLimit.status?.remainingRequests || 5}/5 requests available`
+                  : `Rate limited. Reset in ${formatTimeUntilReset(paymentRateLimit.timeUntilReset)}`
+                }
+              </div>
+              {paymentRateLimit.queueLength > 0 && (
+                <div className="text-xs text-amber-300">
+                  Queue: {paymentRateLimit.queueLength}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-200">Meter number</span>
@@ -134,7 +136,8 @@ function Home() {
                 className="h-11 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4"
                 placeholder="e.g. METER-123"
                 value={meterId}
-                onChange={(e) => setMeterId(e.target.value)}
+                onChange={(e: any) => setMeterId(e.target.value)}
+                disabled={paymentRateLimit.isProcessing}
               />
             </label>
 
@@ -147,7 +150,8 @@ function Home() {
                 min={1}
                 step={1}
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e: any) => setAmount(e.target.value)}
+                disabled={paymentRateLimit.isProcessing}
               />
             </label>
           </div>
@@ -155,18 +159,26 @@ function Home() {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={handlePayment}
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-sky-500 px-5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/30"
+              disabled={buttonState.disabled}
+              className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition focus:outline-none focus:ring-4 focus:ring-sky-500/30 ${buttonState.className}`}
             >
-              Pay bill
+              {buttonState.text}
             </button>
             <p className="text-xs text-slate-400">
-              Requires Freighter extension.
+              Requires Freighter extension. 5 transactions per minute limit.
             </p>
           </div>
 
           <div className="mt-8 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</div>
-            <div className="mt-2 text-sm text-slate-100">{status || 'Ready.'}</div>
+            <div className="mt-2 text-sm text-slate-100">
+              {status || 'Ready.'}
+              {paymentRateLimit.paymentError && (
+                <div className="mt-2 text-amber-300">
+                  {paymentRateLimit.paymentError}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
