@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 function Rate() {
   const [rating, setRating] = useState(0);
@@ -30,11 +30,10 @@ function Rate() {
           className="p-1 focus:outline-none"
         >
           <svg
-            className={`w-8 h-8 transition-colors ${
-              starNumber <= (hoverRating || rating)
-                ? 'text-yellow-400 fill-current'
-                : 'text-slate-600'
-            }`}
+            className={`w-8 h-8 transition-colors ${starNumber <= (hoverRating || rating)
+              ? 'text-yellow-400 fill-current'
+              : 'text-slate-600'
+              }`}
             stroke="currentColor"
             viewBox="0 0 24 24"
             fill={starNumber <= (hoverRating || rating) ? 'currentColor' : 'none'}
@@ -56,14 +55,14 @@ function Rate() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20 sm:p-10">
-          <h1 className="text-3xl font-semibold tracking-tight mb-6">Rate Wata-Board</h1>
-          
-          <div className="grid gap-8 md:grid-cols-2 mb-8">
-            <div className="p-6 rounded-xl bg-slate-950/50 border border-slate-800">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 sm:p-6 lg:p-8 shadow-xl shadow-black/20">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight mb-6">Rate Wata-Board</h1>
+
+          <div className="grid gap-8 lg:grid-cols-2 mb-8">
+            <div className="p-4 sm:p-6 rounded-xl bg-slate-950/50 border border-slate-800">
               <div className="text-center">
-                <div className="text-4xl font-bold text-slate-100 mb-2">{averageRating}</div>
+                <div className="text-3xl sm:text-4xl font-bold text-slate-100 mb-2">{averageRating}</div>
                 <div className="flex justify-center gap-1 mb-2">
                   {[...Array(5)].map((_, i) => (
                     <svg
@@ -78,11 +77,11 @@ function Rate() {
                 <p className="text-slate-400 text-sm">Based on {totalReviews} reviews</p>
               </div>
             </div>
-            
+
             <div className="space-y-3">
               {[5, 4, 3, 2, 1].map((stars) => (
                 <div key={stars} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-400 w-8">{stars} star</span>
+                  <span className="text-sm text-slate-400 w-12 sm:w-16">{stars} star</span>
                   <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-yellow-400 rounded-full"
@@ -96,10 +95,10 @@ function Rate() {
               ))}
             </div>
           </div>
-          
+
           <div className="border-t border-slate-800 pt-8">
             <h2 className="text-xl font-semibold mb-4">Write a Review</h2>
-            
+
             {submitted ? (
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-center">
                 <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,40 +110,40 @@ function Rate() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-3">Your Rating</label>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 justify-center sm:justify-start">
                     {renderStars()}
                   </div>
-                  <p className="mt-2 text-sm text-slate-400">
+                  <p className="mt-2 text-sm text-slate-400 text-center sm:text-left">
                     {rating > 0 && ['Terrible', 'Poor', 'Average', 'Good', 'Excellent'][rating - 1]}
                   </p>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">Your Review</label>
                   <textarea
                     value={review}
                     onChange={(e) => setReview(e.target.value)}
                     rows={4}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4 resize-none"
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4 focus:ring-sky-500/20 transition-all resize-none"
                     placeholder="Share your experience with Wata-Board..."
                     required
                   />
                 </div>
-                
+
                 <button
                   type="submit"
                   disabled={rating === 0}
-                  className="h-11 rounded-xl bg-sky-500 px-5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-12 rounded-xl bg-sky-500 px-6 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Submit Review
                 </button>
               </form>
             )}
           </div>
-          
+
           <div className="mt-8 p-4 rounded-xl bg-sky-500/10 border border-sky-500/20">
-            <p className="text-sm text-sky-300">
-              <span className="font-medium">Note:</span> All reviews are recorded on the blockchain for transparency. 
+            <p className="text-sm text-sky-300 leading-relaxed">
+              <span className="font-medium">Note:</span> All reviews are recorded on the blockchain for transparency.
               Please ensure your review is genuine and helpful to other users.
             </p>
           </div>

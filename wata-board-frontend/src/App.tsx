@@ -1,9 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { Server, Networks, TransactionBuilder, Operation, Asset, BASE_FEE } from '@stellar/stellar-sdk';
 import * as NepaClient from './contracts';
-import { NetworkSwitcher } from './components/NetworkSwitcher';
+import { ResponsiveNavigation } from './components/ResponsiveNavigation';
 import { usePaymentWithRateLimit } from './hooks/useRateLimit';
 import { useFeeEstimation } from './hooks/useFeeEstimation';
 import { getCurrentNetworkConfig } from './utils/network-config';
@@ -118,10 +118,10 @@ function Home() {
 
       // Sign the transaction with Freighter
       const signedTransaction = await signTransaction(transaction.toXDR());
-      
+
       // Submit the transaction
       const result = await server.submitTransaction(signedTransaction);
-      
+
       setStatus(`Payment successful! Transaction ID: ${result.hash.slice(0, 10)}...`);
       setMeterId('');
       setAmount('');
@@ -147,20 +147,19 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20 sm:p-10">
-          <div className="flex items-start justify-between gap-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 sm:p-6 lg:p-8 shadow-xl shadow-black/20">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Wata-Board</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">Wata-Board</h1>
               <p className="mt-2 max-w-prose text-sm text-slate-300">
-
+                Decentralized utility payments on Stellar blockchain
               </p>
             </div>
-            <div className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
-              isMainnet 
-                ? 'bg-orange-500/10 text-orange-300 ring-orange-500/20' 
-                : 'bg-sky-500/10 text-sky-300 ring-sky-500/20'
-            }`}>
+            <div className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset shrink-0 ${isMainnet
+              ? 'bg-orange-500/10 text-orange-300 ring-orange-500/20'
+              : 'bg-sky-500/10 text-sky-300 ring-sky-500/20'
+              }`}>
               {isMainnet ? 'MAINNET' : 'TESTNET'}
             </div>
           </div>
@@ -168,9 +167,9 @@ function Home() {
           {/* Rate Limit Status */}
           <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Rate Limit Status</div>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="text-sm text-slate-100">
-                {paymentRateLimit.canMakeRequest 
+                {paymentRateLimit.canMakeRequest
                   ? `${paymentRateLimit.status?.remainingRequests || 5}/5 requests available`
                   : `Rate limited. Reset in ${formatTimeUntilReset(paymentRateLimit.timeUntilReset)}`
                 }
@@ -217,11 +216,11 @@ function Home() {
             </div>
           )}
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="mt-8 space-y-4">
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-200">Meter number</span>
               <input
-                className="h-11 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4"
+                className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4 focus:ring-sky-500/20 transition-all"
                 placeholder="e.g. METER-123"
                 value={meterId}
                 onChange={(e: any) => setMeterId(e.target.value)}
@@ -232,7 +231,7 @@ function Home() {
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-200">Amount</span>
               <input
-                className="h-11 rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4"
+                className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4 focus:ring-sky-500/20 transition-all"
                 placeholder="Whole number"
                 type="number"
                 min={1}
@@ -244,15 +243,15 @@ function Home() {
             </label>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 flex flex-col gap-4">
             <button
               onClick={handlePayment}
               disabled={buttonState.disabled}
-              className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition focus:outline-none focus:ring-4 focus:ring-sky-500/30 ${buttonState.className}`}
+              className={`w-full h-12 inline-flex items-center justify-center rounded-xl px-6 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition focus:outline-none focus:ring-4 focus:ring-sky-500/30 ${buttonState.className}`}
             >
               {buttonState.text}
             </button>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 text-center">
               Requires Freighter extension. 5 transactions per minute limit.
             </p>
           </div>
@@ -277,7 +276,7 @@ function Home() {
 function App() {
   return (
     <Router>
-      <Navigation />
+      <ResponsiveNavigation />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />

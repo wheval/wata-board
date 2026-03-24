@@ -15,3 +15,72 @@ body {
 body {
   margin: 0;
 }
+
+/* Mobile-first responsive improvements */
+@media (max-width: 640px) {
+  /* Ensure proper viewport scaling on mobile */
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  /* Improve touch targets */
+  button, input, textarea, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Improve readability on mobile */
+  .text-responsive {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+}
+
+/* Tablet improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .text-responsive {
+    font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+  }
+}
+
+/* Smooth animations for mobile menu */
+.mobile-menu-enter {
+  animation: slideDown 0.3s ease-out;
+}
+
+.mobile-menu-exit {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Touch-friendly focus styles */
+@media (hover: none) and (pointer: coarse) {
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #0ea5e9;
+    outline-offset: 2px;
+  }
+}
+
+/* Improve scrolling performance */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent zoom on input focus in iOS */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    font-size: 16px;
+  }
+}
