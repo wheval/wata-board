@@ -1,20 +1,30 @@
-# Wata-Board Integration Testing
-
-This project uses **Playwright** for end-to-end and integration testing. Tests cover the complete payment flow, wallet interactions, and scheduled payments.
-
-## Running Tests
-
-From the `wata-board-frontend` directory:
-
 ```bash
-# Run all tests
+# Run all tests (all browsers)
 npm run test
+
+# Run tests in specific browser
+npx playwright test --project=firefox
+npx playwright test --project=webkit
+npx playwright test --project="Mobile Safari"
 
 # Run tests in UI mode
 npx playwright test --ui
 
 # Debug a specific test
 npx playwright test tests/integration/payment.spec.ts --debug
+```
+
+## Cross-Browser Testing
+
+Playwright is configured to run tests across:
+- **Chromium** (Desktop Chrome, Google Chrome, Microsoft Edge)
+- **Firefox** (Desktop Firefox)
+- **Webkit** (Desktop Safari)
+- **Mobile Viewports** (Pixel 5, iPhone 12)
+
+If a browser is missing in your environment, install it with:
+```bash
+npx playwright install
 ```
 
 ## Test Suites
