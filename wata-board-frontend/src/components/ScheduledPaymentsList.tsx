@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  PaymentSchedule,
   PaymentStatus,
   PaymentFrequency,
+} from '../types/scheduling';
+
+import type {
+  PaymentSchedule,
   ScheduledPayment,
   CalendarEvent
 } from '../types/scheduling';
@@ -18,7 +21,7 @@ export function ScheduledPaymentsList({ userId, onEditSchedule, onNewSchedule }:
   const [schedules, setSchedules] = useState<PaymentSchedule[]>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<PaymentSchedule | null>(null);
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'all'>('active');
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

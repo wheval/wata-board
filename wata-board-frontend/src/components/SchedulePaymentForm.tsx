@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   PaymentFrequency,
+} from '../types/scheduling';
+
+import type {
   NotificationSettings,
   ScheduleFormData,
   ScheduleValidationResult,
@@ -99,10 +102,10 @@ export function SchedulePaymentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validation = validateForm();
-    setValidation(validation);
+    const validationResult = validateForm();
+    setValidation(validationResult);
     
-    if (!validation.isValid) {
+    if (!validationResult.isValid) {
       return;
     }
 
@@ -164,7 +167,6 @@ export function SchedulePaymentForm({
               onChange={(e) => handleInputChange('meterId', e.target.value)}
               className="w-full h-12 px-4 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               placeholder="e.g. METER-123"
-              required
             />
             {validation.errors.find(e => e.field === 'meterId') && (
               <p className="mt-1 text-sm text-red-400">
@@ -408,7 +410,7 @@ export function SchedulePaymentForm({
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            disabled={isSubmitting || !validation.isValid}
+            disabled={isSubmitting}
             className="flex-1 h-12 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
             {isSubmitting ? 'Creating...' : (editMode ? 'Update Schedule' : 'Create Schedule')}

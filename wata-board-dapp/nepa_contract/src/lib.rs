@@ -1,6 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, Address, Env, String, token, Map, Vec, i64};
-use soroban_sdk::{contract, contractimpl, Address, Env, String, token, Symbol, Vec, Map};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, token, Map, Vec, Symbol};
 
 #[contract]
 pub struct NepaBillingContract;
@@ -139,7 +138,7 @@ impl NepaBillingContract {
         env.storage().persistent().set(&reviews_key, &updated_reviews);
 
         // 7. Update rating statistics
-        self.update_rating_stats(&env, rating);
+        Self::_update_rating_stats(&env, rating);
     }
 
     pub fn get_user_review(env: Env, reviewer: Address) -> Option<Review> {
@@ -170,14 +169,14 @@ impl NepaBillingContract {
     }
 
     pub fn verify_review(env: Env, reviewer: Address, transaction_hash: String) -> bool {
-        if let Some(review) = self.get_user_review(env.clone(), reviewer) {
+        if let Some(review) = Self::get_user_review(env.clone(), reviewer) {
             review.transaction_hash == transaction_hash
         } else {
             false
         }
     }
 
-    fn update_rating_stats(&self, env: &Env, new_rating: i64) {
+    fn _update_rating_stats(env: &Env, new_rating: i64) {
         let stats_key = String::from_str(&env, "rating_stats");
         let mut stats: RatingStats = env.storage().persistent().get(&stats_key).unwrap_or(RatingStats {
             total_reviews: 0,

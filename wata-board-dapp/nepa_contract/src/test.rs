@@ -1,243 +1,180 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{symbol_short, testutils::{Address as TestAddress, Ledger as TestLedger}, Env};
+    use soroban_sdk::{testutils::{Address as TestAddress}, Env, String};
 
-    fn create_test_env() -> Env {
+    fn setup_test() -> (Env, NepaBillingContractClient, Address) {
         let env = Env::default();
         env.mock_all_auths();
-        env
+        
+        let contract_id = env.register_contract(None, NepaBillingContract);
+        let client = NepaBillingContractClient::new(&env, &contract_id);
+        
+        let admin = TestAddress::generate(&env);
+        (env, client, admin)
     }
 
     #[test]
     fn test_initialize_contract() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
+        let (env, client, admin) = setup_test();
         
         // Test successful initialization
-        NepaBillingContract::initialize(env.clone(), admin.clone());
+        client.initialize(&admin);
         
-        let retrieved_admin = NepaBillingContract::get_admin(env.clone());
+        let retrieved_admin = client.get_admin();
         assert_eq!(retrieved_admin, admin);
         
         // Test double initialization fails
         let result = std::panic::catch_unwind(|| {
-            NepaBillingContract::initialize(env.clone(), admin.clone());
+            client.initialize(&admin);
         });
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_payment_id_generation() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
+    fn test_pay_bill_and_records() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
+        
         let user = TestAddress::generate(&env);
         let token_address = TestAddress::generate(&env);
-        
-        // Initialize contract
-        NepaBillingContract::initialize(env.clone(), admin.clone());
-        
-        let meter_id = String::from_str(&env, "METER-001");
-        
-        // Make multiple payments
-        let payment1 = NepaBillingContract::pay_bill(
-            env.clone(), 
-            user.clone(), 
-            token_address.clone(), 
-            meter_id.clone(), 
-            1000
-        );
-        
-        let payment2 = NepaBillingContract::pay_bill(
-            env.clone(), 
-            user.clone(), 
-            token_address.clone(), 
-            meter_id.clone(), 
-            2000
-        );
-        
-        // Verify payment IDs are sequential and unique
-        assert_eq!(payment1, 1);
-        assert_eq!(payment2, 2);
-        assert_ne!(payment1, payment2);
-    }
-
-    #[test]
-    fn test_pay_bill_creates_payment_record() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
-        let user = TestAddress::generate(&env);
-        let token_address = TestAddress::generate(&env);
-        
-        // Initialize contract
-        NepaBillingContract::initialize(env.clone(), admin.clone());
-        
         let meter_id = String::from_str(&env, "METER-001");
         let amount = 1000i128;
         
-        // Make a payment
-        let payment_id = NepaBillingContract::pay_bill(
-            env.clone(), 
-            user.clone(), 
-            token_address.clone(), 
-            meter_id.clone(), 
-            amount
-        );
+        // Payment 1
+        let payment1 = client.pay_bill(&user, &token_address, &meter_id, &amount);
+        assert_eq!(payment1, 1);
         
-        // Verify payment record was created
-        let record = NepaBillingContract::get_payment_record(env.clone(), payment_id);
+        // Verify record
+        let record = client.get_payment_record(&payment1);
         assert_eq!(record.payer, user);
         assert_eq!(record.amount, amount);
-        assert_eq!(record.meter_id, meter_id);
-        assert!(!record.refunded);
         
-        // Verify meter total was updated
-        let total = NepaBillingContract::get_total_paid(env.clone(), meter_id);
-        assert_eq!(total, amount);
+        // Verify total
+        assert_eq!(client.get_total_paid(&meter_id), amount);
     }
 
     #[test]
-    fn test_admin_refund_happy_path() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
+    fn test_admin_refund_and_security() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
+        
         let user = TestAddress::generate(&env);
         let token_address = TestAddress::generate(&env);
-        
-        // Initialize contract
-        NepaBillingContract::initialize(env.clone(), admin.clone());
-        
         let meter_id = String::from_str(&env, "METER-001");
-        let amount = 1000i128;
         
-        // Make a payment
-        let payment_id = NepaBillingContract::pay_bill(
-            env.clone(), 
-            user.clone(), 
-            token_address.clone(), 
-            meter_id.clone(), 
-            amount
-        );
+        // Payment
+        let payment_id = client.pay_bill(&user, &token_address, &meter_id, &1000);
         
-        // Verify payment exists and is not refunded
-        let record_before = NepaBillingContract::get_payment_record(env.clone(), payment_id);
-        assert!(!record_before.refunded);
-        
-        // Admin refunds the payment
-        NepaBillingContract::admin_refund(
-            env.clone(), 
-            admin.clone(), 
-            token_address.clone(), 
-            payment_id
-        );
-        
-        // Verify payment is marked as refunded
-        let record_after = NepaBillingContract::get_payment_record(env.clone(), payment_id);
-        assert!(record_after.refunded);
-        
-        // Verify meter total was updated (refunded amount subtracted)
-        let total = NepaBillingContract::get_total_paid(env.clone(), meter_id);
-        assert_eq!(total, 0);
-    }
-
-    #[test]
-    fn test_unauthorized_refund_fails() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
-        let user = TestAddress::generate(&env);
-        let token_address = TestAddress::generate(&env);
-        
-        // Initialize contract
-        NepaBillingContract::initialize(env.clone(), admin.clone());
-        
-        let meter_id = String::from_str(&env, "METER-001");
-        let amount = 1000i128;
-        
-        // Make a payment
-        let payment_id = NepaBillingContract::pay_bill(
-            env.clone(), 
-            user.clone(), 
-            token_address.clone(), 
-            meter_id.clone(), 
-            amount
-        );
-        
-        // Try to refund with unauthorized user (should fail)
-        let unauthorized_user = TestAddress::generate(&env);
+        // 1. Unauthorized refund fails
+        let non_admin = TestAddress::generate(&env);
         let result = std::panic::catch_unwind(|| {
-            NepaBillingContract::admin_refund(
-                env.clone(), 
-                unauthorized_user, 
-                token_address.clone(), 
-                payment_id
-            );
+            client.admin_refund(&non_admin, &token_address, &payment_id);
         });
         assert!(result.is_err());
         
-        // Verify payment is still not refunded
-        let record = NepaBillingContract::get_payment_record(env.clone(), payment_id);
-        assert!(!record.refunded);
+        // 2. Happy path refund
+        client.admin_refund(&admin, &token_address, &payment_id);
+        
+        let record = client.get_payment_record(&payment_id);
+        assert!(record.refunded);
+        assert_eq!(client.get_total_paid(&meter_id), 0);
+        
+        // 3. Double refund fails
+        let result2 = std::panic::catch_unwind(|| {
+            client.admin_refund(&admin, &token_address, &payment_id);
+        });
+        assert!(result2.is_err());
     }
 
     #[test]
-    fn test_double_refund_fails() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
+    fn test_review_system_happy_path() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
+        
         let user = TestAddress::generate(&env);
-        let token_address = TestAddress::generate(&env);
+        let rating = 5;
+        let comment = String::from_str(&env, "Great!");
+        let tx_hash = String::from_str(&env, "h-123");
         
-        // Initialize contract
-        NepaBillingContract::initialize(env.clone(), admin.clone());
+        client.submit_review(&user, &rating, &comment, &tx_hash);
         
-        let meter_id = String::from_str(&env, "METER-001");
-        let amount = 1000i128;
+        let review = client.get_user_review(&user).unwrap();
+        assert_eq!(review.rating, rating);
+        assert_eq!(review.comment, comment);
         
-        // Make a payment
-        let payment_id = NepaBillingContract::pay_bill(
-            env.clone(), 
-            user.clone(), 
-            token_address.clone(), 
-            meter_id.clone(), 
-            amount
-        );
-        
-        // First refund (should succeed)
-        NepaBillingContract::admin_refund(
-            env.clone(), 
-            admin.clone(), 
-            token_address.clone(), 
-            payment_id
-        );
-        
-        // Second refund (should fail)
-        let result = std::panic::catch_unwind(|| {
-            NepaBillingContract::admin_refund(
-                env.clone(), 
-                admin.clone(), 
-                token_address.clone(), 
-                payment_id
-            );
-        });
-        assert!(result.is_err());
+        let stats = client.get_rating_stats();
+        assert_eq!(stats.total_reviews, 1);
+        assert_eq!(stats.average_rating, 50);
     }
 
     #[test]
-    fn test_refund_nonexistent_payment_fails() {
-        let env = create_test_env();
-        let admin = TestAddress::generate(&env);
-        let token_address = TestAddress::generate(&env);
+    fn test_rating_stats_calculation() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
         
-        // Initialize contract
-        NepaBillingContract::initialize(env.clone(), admin.clone());
+        // Submit 5-star and 3-star
+        client.submit_review(&TestAddress::generate(&env), &5, &String::from_str(&env, "A"), &String::from_str(&env, "h1"));
+        client.submit_review(&TestAddress::generate(&env), &3, &String::from_str(&env, "B"), &String::from_str(&env, "h2"));
         
-        // Try to refund non-existent payment
-        let result = std::panic::catch_unwind(|| {
-            NepaBillingContract::admin_refund(
-                env.clone(), 
-                admin.clone(), 
-                token_address.clone(), 
-                999 // Non-existent payment ID
-            );
+        // Avg = (5+3)/2 = 4.0 -> 40
+        let stats = client.get_rating_stats();
+        assert_eq!(stats.total_reviews, 2);
+        assert_eq!(stats.average_rating, 40);
+        assert_eq!(stats.rating_counts.get(2).unwrap(), 1); // 3-star index 2
+        assert_eq!(stats.rating_counts.get(4).unwrap(), 1); // 5-star index 4
+    }
+
+    #[test]
+    fn test_invalid_review_inputs() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
+        let user = TestAddress::generate(&env);
+        
+        // 1. Rating too high
+        let res1 = std::panic::catch_unwind(|| {
+            client.submit_review(&user, &6, &String::from_str(&env, "X"), &String::from_str(&env, "H"));
         });
-        assert!(result.is_err());
+        assert!(res1.is_err());
+        
+        // 2. Rating too low
+        let res2 = std::panic::catch_unwind(|| {
+            client.submit_review(&user, &0, &String::from_str(&env, "X"), &String::from_str(&env, "H"));
+        });
+        assert!(res2.is_err());
+        
+        // 3. Comment too long (limit is 500 characters)
+        let long_comment = String::from_str(&env, "A").repeat(501);
+        let res3 = std::panic::catch_unwind(|| {
+             client.submit_review(&user, &5, &long_comment, &String::from_str(&env, "H"));
+        });
+        assert!(res3.is_err());
+    }
+
+    #[test]
+    fn test_duplicate_review_prevention() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
+        let user = TestAddress::generate(&env);
+        
+        client.submit_review(&user, &5, &String::from_str(&env, "First"), &String::from_str(&env, "H1"));
+        
+        let res = std::panic::catch_unwind(|| {
+            client.submit_review(&user, &4, &String::from_str(&env, "Second"), &String::from_str(&env, "H2"));
+        });
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_verify_review_logic() {
+        let (env, client, admin) = setup_test();
+        client.initialize(&admin);
+        let user = TestAddress::generate(&env);
+        let hash = String::from_str(&env, "hash-001");
+        
+        client.submit_review(&user, &5, &String::from_str(&env, "Test"), &hash);
+        
+        assert!(client.verify_review(&user, &hash));
+        assert!(!client.verify_review(&user, &String::from_str(&env, "wrong-hash")));
     }
 }

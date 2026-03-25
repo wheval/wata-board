@@ -1,8 +1,11 @@
 import {
-  PaymentSchedule,
-  ScheduledPayment,
   PaymentFrequency,
   PaymentStatus,
+} from '../types/scheduling';
+
+import type {
+  PaymentSchedule,
+  ScheduledPayment,
   NotificationSettings,
   ScheduleFormData,
   ScheduleValidationResult,
@@ -400,7 +403,7 @@ export class SchedulingService {
 
       // Here you would integrate with the actual payment processing
       // For now, we'll simulate the payment
-      const success = await this.simulatePayment(schedule, pendingPayment);
+      const success = await this.simulatePayment();
 
       if (success) {
         pendingPayment.status = PaymentStatus.COMPLETED;
@@ -453,7 +456,7 @@ export class SchedulingService {
   }
 
   // Simulate payment processing
-  private async simulatePayment(schedule: PaymentSchedule, payment: ScheduledPayment): Promise<boolean> {
+  private async simulatePayment(): Promise<boolean> {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
     

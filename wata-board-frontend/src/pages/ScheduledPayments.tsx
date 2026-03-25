@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScheduledPaymentsList } from '../components/ScheduledPaymentsList';
 import { SchedulePaymentForm } from '../components/SchedulePaymentForm';
-import { PaymentSchedule } from '../types/scheduling';
+import type { PaymentSchedule } from '../types/scheduling';
 
 export default function ScheduledPayments() {
-  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [, setShowScheduleForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<PaymentSchedule | null>(null);
   const [activeView, setActiveView] = useState<'list' | 'form'>('list');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -24,6 +24,7 @@ export default function ScheduledPayments() {
   };
 
   const handleScheduleSuccess = (schedule: PaymentSchedule) => {
+    console.log('Schedule created/updated:', schedule.id);
     setShowScheduleForm(false);
     setEditingSchedule(null);
     setActiveView('list');

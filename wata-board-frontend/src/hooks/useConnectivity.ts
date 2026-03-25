@@ -76,9 +76,17 @@ export function useConnectivity() {
     // Trigger reconnection process if coming back online
     if (online && offlineActions.length > 0) {
       setIsReconnecting(true);
-      processOfflineActions();
+      // We'll trigger processOfflineActions in a separate effect or after state update
     }
   }, [getConnectionInfo, offlineActions.length]);
+
+  // Handle reconnection when status changes to online
+  useEffect(() => {
+    if (connectivity.isOnline && offlineActions.length > 0 && !isReconnecting) {
+      setIsReconnecting(true);
+      processOfflineActions();
+    }
+  }, [connectivity.isOnline]);
 
   // Process offline actions when back online
   const processOfflineActions = useCallback(async () => {
@@ -89,7 +97,9 @@ export function useConnectivity() {
     for (const action of offlineActions) {
       try {
         await retryAction(action);
+        // Remove from state and DB
         setOfflineActions(prev => prev.filter(a => a.id !== action.id));
+        await removeOfflineAction(action.id);
       } catch (error) {
         console.error(`[Connectivity] Failed to retry action ${action.id}:`, error);
         
@@ -124,14 +134,43 @@ export function useConnectivity() {
         }
         break;
 
-      case 'review':
-        // Handle review retry logic here
-        break;
-
       default:
         throw new Error(`Unknown action type: ${action.type}`);
     }
   }, []);
+
+  // Open IndexedDB for offline storage
+  const openOfflineDB = useCallback((): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('wata-board-offline', 1);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('actions')) {
+          db.createObjectStore('actions', { keyPath: 'id' });
+        }
+      };
+    });
+  }, []);
+
+  // Remove offline action from IndexedDB
+  const removeOfflineAction = useCallback(async (id: string) => {
+    try {
+      const db = await openOfflineDB();
+      const transaction = db.transaction(['actions'], 'readwrite');
+      const store = transaction.objectStore('actions');
+      return new Promise<void>((resolve, reject) => {
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error('[Connectivity] Failed to remove offline action:', error);
+    }
+  }, [openOfflineDB]);
 
   // Queue action for offline processing
   const queueOfflineAction = useCallback((type: OfflineAction['type'], data: any) => {
@@ -157,26 +196,15 @@ export function useConnectivity() {
       const db = await openOfflineDB();
       const transaction = db.transaction(['actions'], 'readwrite');
       const store = transaction.objectStore('actions');
-      await store.add(action);
+      return new Promise<void>((resolve, reject) => {
+        const request = store.add(action);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
     } catch (error) {
       console.error('[Connectivity] Failed to store offline action:', error);
     }
-  }, []);
-
-  // Open IndexedDB for offline storage
-  const openOfflineDB = useCallback((): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open('wata-board-offline', 1);
-      
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-      
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        db.createObjectStore('actions', { keyPath: 'id' });
-      };
-    });
-  }, []);
+  }, [openOfflineDB]);
 
   // Load offline actions from IndexedDB
   const loadOfflineActions = useCallback(async () => {
@@ -184,36 +212,45 @@ export function useConnectivity() {
       const db = await openOfflineDB();
       const transaction = db.transaction(['actions'], 'readonly');
       const store = transaction.objectStore('actions');
-      const actions = await store.getAll();
       
-      setOfflineActions(actions.result || []);
+      return new Promise<void>((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => {
+          setOfflineActions(request.result || []);
+          resolve();
+        };
+        request.onerror = () => reject(request.error);
+      });
     } catch (error) {
       console.error('[Connectivity] Failed to load offline actions:', error);
     }
   }, [openOfflineDB]);
 
   // Clear offline actions
-  const clearOfflineActions = useCallback(() => {
+  const clearOfflineActions = useCallback(async () => {
     setOfflineActions([]);
     
-    // Clear from IndexedDB
-    openOfflineDB().then(db => {
+    try {
+      const db = await openOfflineDB();
       const transaction = db.transaction(['actions'], 'readwrite');
       const store = transaction.objectStore('actions');
-      store.clear();
-    }).catch(error => {
+      return new Promise<void>((resolve, reject) => {
+        const request = store.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
       console.error('[Connectivity] Failed to clear offline actions:', error);
-    });
+    }
   }, [openOfflineDB]);
 
   // Manual connectivity check
   const checkConnectivity = useCallback(async (): Promise<boolean> => {
     try {
-      // Try to fetch a small resource to verify connectivity
       const response = await fetch('/api/health', {
         method: 'HEAD',
         cache: 'no-cache',
-        signal: AbortSignal.timeout(5000), // 5 second timeout
+        signal: AbortSignal.timeout(5000),
       });
       
       const isOnline = response.ok;
@@ -231,12 +268,14 @@ export function useConnectivity() {
       navigator.serviceWorker.ready.then((registration) => {
         serviceWorkerRef.current = registration;
         
-        // Listen for messages from service worker
-        navigator.serviceWorker.addEventListener('message', (event) => {
+        const handleMessage = (event: MessageEvent) => {
           if (event.data?.type === 'CONNECTIVITY_STATUS') {
             updateConnectivity(event.data.isOnline);
           }
-        });
+        };
+
+        navigator.serviceWorker.addEventListener('message', handleMessage);
+        return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
       });
     }
   }, [updateConnectivity]);
@@ -249,13 +288,11 @@ export function useConnectivity() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Listen for connection changes if available
     const connection = (navigator as any).connection;
     if (connection) {
       const handleConnectionChange = () => {
         updateConnectivity(navigator.onLine);
       };
-      
       connection.addEventListener('change', handleConnectionChange);
       
       return () => {
@@ -279,8 +316,7 @@ export function useConnectivity() {
   // Periodic connectivity check when offline
   useEffect(() => {
     if (!connectivity.isOnline) {
-      const interval = setInterval(checkConnectivity, 30000); // Check every 30 seconds
-      
+      const interval = setInterval(checkConnectivity, 30000);
       return () => clearInterval(interval);
     }
   }, [connectivity.isOnline, checkConnectivity]);
@@ -296,7 +332,6 @@ export function useConnectivity() {
   };
 }
 
-// Helper hook for checking if specific functionality is available
 export function useOfflineCapability(feature: 'payment' | 'review' | 'general') {
   const { connectivity } = useConnectivity();
   

@@ -1,5 +1,8 @@
 import {
   NotificationType,
+} from '../types/scheduling';
+
+import type {
   PaymentNotification,
   NotificationSettings,
   PaymentSchedule,
@@ -345,13 +348,11 @@ export class NotificationService {
       'yearly': 'yearly'
     };
     
-    return descriptions[frequency] || frequency;
+    return (descriptions as any)[frequency] || frequency;
   }
 
   // Send reminder notifications
   async sendReminderNotifications(schedules: PaymentSchedule[]): Promise<void> {
-    const now = new Date();
-    
     for (const schedule of schedules) {
       if (schedule.status !== 'scheduled') continue;
       

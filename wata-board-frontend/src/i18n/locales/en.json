@@ -2,7 +2,10 @@
   "app": {
     "title": "Wata-Board",
     "tagline": "Decentralized utility payments on Stellar blockchain",
-    "description": "Pay your utility bills using cryptocurrency on the Stellar network"
+    "description": "Pay your utility bills using cryptocurrency on the Stellar network",
+    "footer": {
+      "tagline": "Modern payment solutions for the decentralized web"
+    }
   },
   "navigation": {
     "home": "Pay Bill",

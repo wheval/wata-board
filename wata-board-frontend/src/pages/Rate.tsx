@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRating } from '../hooks/useRating';
-import { useWallet } from '../hooks/useWalletBalance';
-import React, { useState } from 'react';
+import { useWalletBalance } from '../hooks/useWalletBalance';
+import React from 'react';
 
 function Rate() {
   const [rating, setRating] = useState(0);
@@ -18,11 +18,11 @@ function Rate() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
 
-  const { publicKey } = useWallet();
+  const { balance } = useWalletBalance();
+  const publicKey = balance?.publicKey;
   const {
     submitReview,
     getUserReview,
-    getAllReviews,
     getRatingStats,
     verifyReview,
     isLoading,
@@ -93,10 +93,6 @@ function Rate() {
         setTimeout(() => {
           setSubmitted(false);
           setShowVerification(false);
-          if (!userReview) {
-            setRating(0);
-            setReview('');
-          }
         }, 5000);
       }
     } catch (err) {
@@ -126,6 +122,7 @@ function Rate() {
   const renderStars = () => {
     return [...Array(5)].map((_, index) => {
       const starNumber = index + 1;
+      const isFilled = starNumber <= (hoverRating || rating);
       return (
         <button
           key={index}
@@ -138,16 +135,10 @@ function Rate() {
           aria-label={`Rate ${starNumber} stars`}
         >
           <svg
-            className={`w-8 h-8 transition-colors ${starNumber <= (hoverRating || rating)
-                ? 'text-yellow-400 fill-current'
-                : 'text-slate-600'
-              } ${userReview || isLoading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-              ? 'text-yellow-400 fill-current'
-              : 'text-slate-600'
-              }`}
+            className={`w-8 h-8 transition-colors ${isFilled ? 'text-yellow-400 fill-current' : 'text-slate-600'} ${userReview || isLoading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
             stroke="currentColor"
             viewBox="0 0 24 24"
-            fill={starNumber <= (hoverRating || rating) ? 'currentColor' : 'none'}
+            fill={isFilled ? 'currentColor' : 'none'}
             aria-hidden="true"
           >
             <path
@@ -177,18 +168,12 @@ function Rate() {
             <p className="mt-2 text-slate-300">Your feedback helps us improve our decentralized utility payment platform</p>
           </header>
 
-          <div className="grid gap-6 lg:grid-cols-2 mb-8">
+          <div className="grid gap-6 lg:grid-cols-2 mb-8 border-b border-slate-800 pb-8">
             <div className="p-4 sm:p-6 rounded-xl bg-slate-950/50 border border-slate-800">
               <div className="text-center">
                 <div className="text-3xl sm:text-4xl font-bold text-slate-100 mb-2">
                   {ratingStats.average_rating.toFixed(1)}
                 </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight mb-6">Rate Wata-Board</h1>
-
-          <div className="grid gap-8 lg:grid-cols-2 mb-8">
-            <div className="p-4 sm:p-6 rounded-xl bg-slate-950/50 border border-slate-800">
-              <div className="text-center">
-                <div className="text-3xl sm:text-4xl font-bold text-slate-100 mb-2">{averageRating}</div>
                 <div className="flex justify-center gap-1 mb-2">
                   {[...Array(5)].map((_, i) => (
                     <svg
@@ -223,7 +208,7 @@ function Rate() {
             </div>
           </div>
 
-          <div className="border-t border-slate-800 pt-6 sm:pt-8">
+          <div className="pt-6 sm:pt-8">
             <h2 className="text-xl font-semibold mb-4">
               {userReview ? 'Your Review' : 'Write a Review'}
             </h2>
@@ -233,8 +218,6 @@ function Rate() {
                 <p className="text-sm">{error}</p>
               </div>
             )}
-          <div className="border-t border-slate-800 pt-8">
-            <h2 className="text-xl font-semibold mb-4">Write a Review</h2>
 
             {submitted ? (
               <div className="p-4 sm:p-6 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-center">
@@ -308,7 +291,6 @@ function Rate() {
                     onChange={(e) => setReview(e.target.value)}
                     rows={4}
                     maxLength={500}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4 resize-none"
                     className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-100 outline-none ring-sky-500/30 placeholder:text-slate-500 focus:ring-4 focus:ring-sky-500/20 transition-all resize-none"
                     placeholder="Share your experience with Wata-Board..."
                     required
@@ -334,14 +316,6 @@ function Rate() {
                     </p>
                   )}
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={rating === 0}
-                  className="w-full h-12 rounded-xl bg-sky-500 px-6 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 ring-1 ring-inset ring-white/10 transition hover:bg-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Submit Review
-                </button>
               </form>
             )}
           </div>
@@ -365,6 +339,7 @@ function Rate() {
                 <span className="font-medium text-slate-100">✅ One Review Per User:</span> Each wallet address can submit only one review
               </p>
             </div>
+          </div>
           <div className="mt-8 p-4 rounded-xl bg-sky-500/10 border border-sky-500/20">
             <p className="text-sm text-sky-300 leading-relaxed">
               <span className="font-medium">Note:</span> All reviews are recorded on the blockchain for transparency.
