@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { ScheduledPayment, PaymentStatus } from '../types/scheduling';
+import { PaymentHistoryFilter, PaymentHistoryFilters } from './PaymentHistoryFilter';
 
 interface PaymentHistoryListProps {
   payments: ScheduledPayment[];
