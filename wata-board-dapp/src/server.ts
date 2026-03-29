@@ -8,6 +8,11 @@ import { PaymentService, PaymentRequest } from './payment-service';
 import { RateLimiter, RateLimitConfig } from './rate-limiter';
 import logger, { auditLogger } from './utils/logger';
 import { HealthService } from './utils/health';
+import { metricsCollector } from './middleware/metrics';
+import { tieredRateLimiter } from './middleware/rateLimiter';
+import monitoringRoutes from './routes/monitoring';
+import upgradeRoutes from './routes/upgrade';
+import currencyRoutes from './routes/currency';
 
 // Load environment variables
 dotenv.config();
@@ -101,6 +106,17 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// ── Metrics collection (must be before route handlers) ──
+app.use(metricsCollector.middleware());
+
+// ── Tiered rate limiting on payment endpoints (#85) ──
+app.use('/api/payment', tieredRateLimiter.middleware());
+
+// ── New route groups (#99, #94, #101) ──
+app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/currency', currencyRoutes);
+app.use('/api/upgrade', upgradeRoutes);
 
 // Health check endpoints (Liveness, Readiness, Full)
 
