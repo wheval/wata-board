@@ -146,6 +146,14 @@ export const ResponsiveNavigation: React.FC = () => {
                 >
                   Rate Us
                 </Link>
+                <Link
+                  to="/analytics"
+                  className={`transition px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${isActive('/analytics')}`}
+                  aria-current={location.pathname === '/analytics' ? 'page' : undefined}
+                  role="menuitem"
+                >
+                  Analytics
+                </Link>
               </div>
               <ThemeSwitcher variant="icon" />
               <NetworkSwitcher showLabel={false} />
@@ -209,6 +217,14 @@ export const ResponsiveNavigation: React.FC = () => {
                 role="menuitem"
               >
                 Rate Us
+              </Link>
+              <Link
+                to="/analytics"
+                className={`transition px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${isActive('/analytics')}`}
+                aria-current={location.pathname === '/analytics' ? 'page' : undefined}
+                role="menuitem"
+              >
+                Analytics
               </Link>
               <div className="ml-auto flex items-center gap-3">
                 <ThemeSwitcher variant="icon" />

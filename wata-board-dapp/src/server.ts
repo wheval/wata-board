@@ -8,6 +8,9 @@ import { PaymentService, PaymentRequest } from './payment-service';
 import { RateLimiter, RateLimitConfig } from './rate-limiter';
 import logger, { auditLogger } from './utils/logger';
 import { HealthService } from './utils/health';
+import { handleClientError, apiErrorHandler } from './middleware/errorHandler';
+import { AnalyticsService } from './services/analyticsService';
+import { getTransactionStatus, startWebsocketService, updateTransactionStatus } from './services/websocketService';
 
 // Load environment variables
 dotenv.config();
@@ -90,6 +93,9 @@ app.use(cors(corsOptions));
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Client-side error logging endpoint
+app.post('/api/client-errors', handleClientError);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -181,6 +187,9 @@ app.post('/api/payment', async (req, res) => {
     res.set('X-Rate-Limit-Remaining', result.rateLimitInfo?.remainingRequests?.toString() || '0');
 
     if (result.success) {
+      if (result.transactionId) {
+        updateTransactionStatus(result.transactionId, 'confirmed');
+      }
       return res.status(200).json({
         success: true,
         transactionId: result.transactionId,
@@ -190,6 +199,9 @@ app.post('/api/payment', async (req, res) => {
         }
       });
     } else {
+      if (result.transactionId) {
+        updateTransactionStatus(result.transactionId, 'failed');
+      }
       // Handle rate limit errors with appropriate status codes
       if (result.error?.includes('Rate limit exceeded')) {
         return res.status(429).json({
@@ -255,6 +267,44 @@ app.get('/api/rate-limit/:userId', (req, res) => {
 });
 
 /**
+ * GET /api/analytics/:userId
+ * Provide analytics insights for a user
+ */
+app.get('/api/analytics/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    const analytics = AnalyticsService.generateReport(userId);
+    return res.status(200).json(analytics);
+  } catch (error) {
+    logger.error('Analytics report generation failed', { error, userId: req.params.userId });
+    return res.status(500).json({ success: false, error: 'Failed to generate analytics report' });
+  }
+});
+
+/**
+ * GET /api/transaction-status/:transactionId
+ * Return current transaction status for real-time updates.
+ */
+app.get('/api/transaction-status/:transactionId', (req, res) => {
+  try {
+    const { transactionId } = req.params;
+    if (!transactionId) {
+      return res.status(400).json({ success: false, error: 'Transaction ID is required' });
+    }
+
+    const status = getTransactionStatus(transactionId);
+    return res.status(200).json({ success: true, transactionId, status });
+  } catch (error) {
+    logger.error('Transaction status query failed', { error, transactionId: req.params.transactionId });
+    return res.status(500).json({ success: false, error: 'Unable to retrieve transaction status' });
+  }
+});
+
+/**
  * GET /api/payment/:meterId
  * Get total paid amount for a meter
  */
@@ -300,27 +350,7 @@ app.get('/api/payment/:meterId', async (req, res) => {
 });
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err.name === 'UnauthorizedError') {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized'
-    });
-  }
-
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      success: false,
-      error: 'CORS policy violation'
-    });
-  }
-  
-  logger.error('Unhandled server error', { err, method: req.method, path: req.path });
-  return res.status(500).json({
-    success: false,
-    error: 'Internal server error'
-  });
-});
+app.use(apiErrorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -408,6 +438,8 @@ function startServer() {
       });
     });
   }
+
+  startWebsocketService();
 }
 
 startServer();

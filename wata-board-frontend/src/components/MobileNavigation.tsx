@@ -153,6 +153,15 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onClose }) 
               >
                 Rate Us
               </Link>
+              <Link
+                to="/analytics"
+                className={`block px-4 py-3 rounded-lg text-base font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${isActive('/analytics')}`}
+                onClick={onClose}
+                aria-current={location.pathname === '/analytics' ? 'page' : undefined}
+                role="menuitem"
+              >
+                Analytics
+              </Link>
             </div>
           </nav>
 

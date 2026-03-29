@@ -13,6 +13,10 @@ import { TransactionSuccess } from './components/TransactionSuccess';
 import type { TransactionDetails } from './components/TransactionSuccess';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalErrorFallback } from './components/GlobalErrorFallback';
+import { AnalyticsDashboard } from './components/Analytics/Dashboard';
+import { logClientError } from './services/errorLoggingService';
+import { TransactionStatus } from './components/TransactionStatus';
+import { useRealtimeTransactions } from './hooks/useRealtimeTransactions';
 
 // Hooks & Utils
 import { isConnected, requestAccess, signTransaction } from "./utils/wallet-bridge";
@@ -39,6 +43,7 @@ function Home() {
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState('');
   const [transactionDetails, setTransactionDetails] = useState<TransactionDetails | null>(null);
+  const { connectionState, transactionState, lastUpdated, error: transactionUpdateError } = useRealtimeTransactions(transactionDetails?.hash);
 
   const networkConfig = getCurrentNetworkConfig();
   const { isSufficientBalance, refreshBalance } = useWalletBalance();
@@ -194,13 +199,22 @@ function Home() {
           <WalletBalance className="mt-6" />
 
           {transactionDetails ? (
-            <TransactionSuccess 
-              details={transactionDetails} 
-              onReset={() => {
-                setTransactionDetails(null);
-                setStatus('');
-              }} 
-            />
+            <>
+              <TransactionStatus
+                transactionId={transactionDetails.hash}
+                connectionState={connectionState}
+                transactionState={transactionState}
+                lastUpdated={lastUpdated}
+                error={transactionUpdateError}
+              />
+              <TransactionSuccess 
+                details={transactionDetails} 
+                onReset={() => {
+                  setTransactionDetails(null);
+                  setStatus('');
+                }} 
+              />
+            </>
           ) : (
             <form onSubmit={handlePayment} className="mt-8 space-y-6">
               {/* Fee Estimation Display */}
@@ -305,7 +319,10 @@ export default function App() {
 
   return (
     <Router>
-      <ErrorBoundary FallbackComponent={GlobalErrorFallback}>
+      <ErrorBoundary
+        FallbackComponent={GlobalErrorFallback}
+        onError={(error, errorInfo) => logClientError(error, errorInfo.componentStack, { module: 'App' })}
+      >
         <div className="app-container min-h-screen bg-slate-950">
           <SkipLinks />
           <OfflineBanner />
@@ -317,6 +334,7 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/rate" element={<Rate />} />
             <Route path="/schedules" element={<ScheduledPayments />} />
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
           </Routes>
         </div>
       </ErrorBoundary>
