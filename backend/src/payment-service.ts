@@ -1,17 +1,27 @@
 import { RateLimiter, RateLimitConfig, RateLimitResult } from './rate-limiter';
 import logger, { auditLogger } from './utils/logger';
+import { PaymentRequest as SharedPaymentRequest, PaymentResponse, RateLimitInfo, createApiResponse } from '../../../shared/types';
 
+// Legacy interface for backward compatibility - deprecated
 export interface PaymentRequest {
   meter_id: string;
   amount: number;
   userId: string;
 }
 
-export interface PaymentResult {
-  success: boolean;
-  transactionId?: string;
-  error?: string;
+// Updated interface using standardized types
+export interface PaymentResult extends PaymentResponse {
   rateLimitInfo?: RateLimitResult;
+}
+
+// Helper function to convert legacy PaymentRequest to standardized format
+function convertToStandardRequest(legacyRequest: PaymentRequest): SharedPaymentRequest {
+  return {
+    meterId: legacyRequest.meter_id,
+    amount: legacyRequest.amount,
+    userId: legacyRequest.userId,
+    timestamp: new Date().toISOString()
+  };
 }
 
 export class PaymentService {
@@ -27,15 +37,30 @@ export class PaymentService {
    */
   async processPayment(request: PaymentRequest): Promise<PaymentResult> {
     try {
+      // Convert to standardized format
+      const standardRequest = convertToStandardRequest(request);
+      
       // Check rate limit
       const rateLimitResult = await this.rateLimiter.checkLimit(request.userId);
       
+      // Convert RateLimitResult to RateLimitInfo for standardized response
+      const rateLimitInfo: RateLimitInfo = {
+        remainingRequests: rateLimitResult.remainingRequests,
+        resetTime: rateLimitResult.resetTime?.toISOString(),
+        queued: rateLimitResult.queued,
+        queuePosition: rateLimitResult.queuePosition,
+        allowed: rateLimitResult.allowed,
+        limit: rateLimitResult.limit
+      };
+      
+
       if (!rateLimitResult.allowed && !rateLimitResult.queued) {
         logger.warn('Payment rejected: rate limit exceeded', { userId: request.userId, rateLimitResult });
         return {
           success: false,
           error: this.getRateLimitError(rateLimitResult),
-          rateLimitInfo: rateLimitResult
+          timestamp: new Date().toISOString(),
+          rateLimitInfo
         };
       }
 
@@ -44,7 +69,8 @@ export class PaymentService {
         return {
           success: false,
           error: this.getQueueMessage(rateLimitResult),
-          rateLimitInfo: rateLimitResult
+          timestamp: new Date().toISOString(),
+          rateLimitInfo
         };
       }
 
@@ -54,13 +80,14 @@ export class PaymentService {
 
       try {
         const transactionId = await this.executePayment(request);
-        
+
         auditLogger.log('Payment executed successfully', { userId: request.userId, transactionId, meter_id: request.meter_id, amount: request.amount });
-        
+
         return {
           success: true,
           transactionId,
-          rateLimitInfo: rateLimitResult
+          timestamp: new Date().toISOString(),
+          rateLimitInfo
         };
       } finally {
         this.pendingPayments.delete(paymentId);
@@ -70,7 +97,8 @@ export class PaymentService {
       logger.error('Payment processing failed', { error, request });
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown payment error'
+        error: error instanceof Error ? error.message : 'Unknown payment error',
+        timestamp: new Date().toISOString()
       };
     }
   }
@@ -81,7 +109,7 @@ export class PaymentService {
   private async executePayment(request: PaymentRequest): Promise<string> {
     // Import the client dynamically to avoid circular dependencies
     const NepaClient = await import('../packages/nepa_client_v2');
-    
+
     const client = new NepaClient.Client({
       ...NepaClient.networks.testnet,
       rpcUrl: 'https://soroban-testnet.stellar.org:443',
@@ -93,11 +121,9 @@ export class PaymentService {
     });
 
     // For backend processing, we'd need to sign with the admin key
-    // This is a simplified version - in production, you'd want more secure key management
-    const adminSecret = process.env.SECRET_KEY;
-    if (!adminSecret) {
-      throw new Error('Admin secret key not configured');
-    }
+    // Using secure key management
+    const { secureEnvConfig } = await import('./utils/secureEnvConfig');
+    const adminSecret = secureEnvConfig.getAdminSecretKey();
 
     const { Keypair } = await import('@stellar/stellar-sdk');
     const adminKeypair = Keypair.fromSecret(adminSecret);
