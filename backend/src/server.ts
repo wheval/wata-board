@@ -1,30 +1,35 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import dotenv from 'dotenv';
-import https from 'https';
-import fs from 'fs';
-import { PaymentService, PaymentRequest } from './payment-service';
-import { RateLimiter, RateLimitConfig } from './rate-limiter';
-import logger, { auditLogger } from './utils/logger';
-import { HealthService } from './utils/health';
-import { metricsCollector } from './middleware/metrics';
-import { tieredRateLimiter } from './middleware/rateLimiter';
-import monitoringRoutes from './routes/monitoring';
-import upgradeRoutes from './routes/upgrade';
-import currencyRoutes from './routes/currency';
-import { handleClientError, apiErrorHandler } from './middleware/errorHandler';
-import { AnalyticsService } from './services/analyticsService';
-import { getTransactionStatus, startWebsocketService, updateTransactionStatus } from './services/websocketService';
-import configRoutes from './routes/config';
-import { captureAndTrackConfig } from './utils/configSnapshot';
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import dotenv from "dotenv";
+import https from "https";
+import fs from "fs";
+import { PaymentService, PaymentRequest } from "./payment-service";
+import { RateLimiter, RateLimitConfig } from "./rate-limiter";
+import logger, { auditLogger } from "./utils/logger";
+import { HealthService } from "./utils/health";
+import { metricsCollector } from "./middleware/metrics";
+import { tieredRateLimiter } from "./middleware/rateLimiter";
+import monitoringRoutes from "./routes/monitoring";
+import upgradeRoutes from "./routes/upgrade";
+import currencyRoutes from "./routes/currency";
+import analyticsRoutes from "./routes/analytics";
+import { handleClientError, apiErrorHandler } from "./middleware/errorHandler";
+import { AnalyticsService } from "./services/analyticsService";
+import {
+  getTransactionStatus,
+  startWebsocketService,
+  updateTransactionStatus,
+} from "./services/websocketService";
+import configRoutes from "./routes/config";
+import { captureAndTrackConfig } from "./utils/configSnapshot";
 import {
   sanitizeString,
   sanitizeAlphanumeric,
   sanitizePositiveNumber,
   validationError,
   type ValidationError,
-} from './utils/sanitize';
+} from "./utils/sanitize";
 
 // Load environment variables
 dotenv.config();
@@ -34,9 +39,9 @@ captureAndTrackConfig();
 
 // Rate limiting configuration
 const RATE_LIMIT_CONFIG: RateLimitConfig = {
-  windowMs: 60 * 1000,  // 1 minute
-  maxRequests: 5,        // 5 transactions per minute
-  queueSize: 10          // Allow 10 queued requests
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 5, // 5 transactions per minute
+  queueSize: 10, // Allow 10 queued requests
 };
 
 // Initialize payment service with rate limiting
@@ -47,23 +52,30 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security middleware with enhanced HTTPS support
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://stellar.org"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.yourdomain.com", "https://soroban-testnet.stellar.org", "https://soroban.stellar.org"],
-      frameAncestors: ["'none'"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://stellar.org"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: [
+          "'self'",
+          "https://api.yourdomain.com",
+          "https://soroban-testnet.stellar.org",
+          "https://soroban.stellar.org",
+        ],
+        frameAncestors: ["'none'"],
+      },
     },
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  }
-}));
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  }),
+);
 
 // CORS configuration with environment-based settings
 const corsOptions: cors.CorsOptions = {
@@ -73,10 +85,13 @@ const corsOptions: cors.CorsOptions = {
 
     // Get allowed origins from environment or use defaults
     const allowedOrigins = getAllowedOrigins();
-    
-    if (process.env.NODE_ENV === 'development') {
+
+    if (process.env.NODE_ENV === "development") {
       // In development, allow localhost with any port
-      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      if (
+        origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:")
+      ) {
         return callback(null, true);
       }
     }
@@ -85,42 +100,42 @@ const corsOptions: cors.CorsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn('CORS: Origin not allowed', { origin });
-      callback(new Error('Not allowed by CORS'));
+      logger.warn("CORS: Origin not allowed", { origin });
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true, // Allow cookies and credentials
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'Cache-Control',
-    'Pragma'
+    "Origin",
+    "X-Requested-With",
+    "Content-Type",
+    "Accept",
+    "Authorization",
+    "Cache-Control",
+    "Pragma",
   ],
-  exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
-  maxAge: 86400 // Cache preflight requests for 24 hours
+  exposedHeaders: ["X-Total-Count", "X-Rate-Limit-Remaining"],
+  maxAge: 86400, // Cache preflight requests for 24 hours
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Client-side error logging endpoint
-app.post('/api/client-errors', handleClientError);
+app.post("/api/client-errors", handleClientError);
 
 // Request logging middleware
 app.use((req, res, next) => {
-  logger.info('Incoming HTTP Request', { 
-    method: req.method, 
-    path: req.path, 
+  logger.info("Incoming HTTP Request", {
+    method: req.method,
+    path: req.path,
     ip: req.ip,
-    userAgent: req.get('user-agent')
+    userAgent: req.get("user-agent"),
   });
   next();
 });
@@ -129,14 +144,15 @@ app.use((req, res, next) => {
 app.use(metricsCollector.middleware());
 
 // ── Tiered rate limiting on payment endpoints (#85) ──
-app.use('/api/payment', tieredRateLimiter.middleware());
+app.use("/api/payment", tieredRateLimiter.middleware());
 
 // ── New route groups (#99, #94, #101) ──
-app.use('/api/monitoring', monitoringRoutes);
-app.use('/api/currency', currencyRoutes);
-app.use('/api/upgrade', upgradeRoutes);
+app.use("/api/monitoring", monitoringRoutes);
+app.use("/api/currency", currencyRoutes);
+app.use("/api/upgrade", upgradeRoutes);
+app.use("/api/analytics", analyticsRoutes);
 // ── Configuration versioning (#configuration-versioning) ──
-app.use('/api/config', configRoutes);
+app.use("/api/config", configRoutes);
 
 // Health check endpoints (Liveness, Readiness, Full)
 
@@ -144,7 +160,7 @@ app.use('/api/config', configRoutes);
  * GET /health
  * Basic liveness check (fast, no heavy resource checking).
  */
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json(HealthService.getLiveness());
 });
 
@@ -152,9 +168,9 @@ app.get('/health', (req, res) => {
  * GET /health/ready
  * Readiness check ensures the app is ready to take traffic and connect to dependencies.
  */
-app.get('/health/ready', async (req, res) => {
+app.get("/health/ready", async (req, res) => {
   const readiness = await HealthService.getReadiness();
-  const status = readiness.status === 'UP' ? 200 : 503;
+  const status = readiness.status === "UP" ? 200 : 503;
   res.status(status).json(readiness);
 });
 
@@ -162,14 +178,14 @@ app.get('/health/ready', async (req, res) => {
  * GET /health/full
  * Full diagnostics (requires appropriate authorization in production).
  */
-app.get('/health/full', async (req, res) => {
+app.get("/health/full", async (req, res) => {
   try {
     const fullHealth = await HealthService.getFullHealth();
-    const status = fullHealth.status === 'UP' ? 200 : 503;
+    const status = fullHealth.status === "UP" ? 200 : 503;
     res.status(status).json(fullHealth);
   } catch (error) {
-    logger.error('Health check full: Failed', { error });
-    res.status(500).json({ status: 'DOWN', error: 'Diagnostics failed' });
+    logger.error("Health check full: Failed", { error });
+    res.status(500).json({ status: "DOWN", error: "Diagnostics failed" });
   }
 });
 
@@ -179,7 +195,7 @@ app.get('/health/full', async (req, res) => {
  * POST /api/payment
  * Process a utility payment with rate limiting
  */
-app.post('/api/payment', async (req, res) => {
+app.post("/api/payment", async (req, res) => {
   try {
     const raw = req.body;
 
@@ -188,17 +204,29 @@ app.post('/api/payment', async (req, res) => {
 
     const meter_id = sanitizeAlphanumeric(raw.meter_id, 50);
     if (!meter_id) {
-      errors.push(validationError('meter_id', 'meter_id must be an alphanumeric string (max 50 chars)'));
+      errors.push(
+        validationError(
+          "meter_id",
+          "meter_id must be an alphanumeric string (max 50 chars)",
+        ),
+      );
     }
 
     const amount = sanitizePositiveNumber(raw.amount);
     if (Number.isNaN(amount)) {
-      errors.push(validationError('amount', 'amount must be a positive number'));
+      errors.push(
+        validationError("amount", "amount must be a positive number"),
+      );
     }
 
     const userId = sanitizeAlphanumeric(raw.userId, 100);
     if (!userId) {
-      errors.push(validationError('userId', 'userId must be an alphanumeric string (max 100 chars)'));
+      errors.push(
+        validationError(
+          "userId",
+          "userId must be an alphanumeric string (max 100 chars)",
+        ),
+      );
     }
 
     if (errors.length > 0) {
@@ -214,50 +242,53 @@ app.post('/api/payment', async (req, res) => {
     const result = await paymentService.processPayment(paymentRequest);
 
     // Add CORS headers and rate limit info to response
-    res.set('X-Rate-Limit-Remaining', result.rateLimitInfo?.remainingRequests?.toString() || '0');
+    res.set(
+      "X-Rate-Limit-Remaining",
+      result.rateLimitInfo?.remainingRequests?.toString() || "0",
+    );
 
     if (result.success) {
       if (result.transactionId) {
-        updateTransactionStatus(result.transactionId, 'confirmed');
+        updateTransactionStatus(result.transactionId, "confirmed");
       }
       return res.status(200).json({
         success: true,
         transactionId: result.transactionId,
         rateLimitInfo: {
           remainingRequests: result.rateLimitInfo?.remainingRequests,
-          resetTime: result.rateLimitInfo?.resetTime
-        }
+          resetTime: result.rateLimitInfo?.resetTime,
+        },
       });
     } else {
       if (result.transactionId) {
-        updateTransactionStatus(result.transactionId, 'failed');
+        updateTransactionStatus(result.transactionId, "failed");
       }
       // Handle rate limit errors with appropriate status codes
-      if (result.error?.includes('Rate limit exceeded')) {
+      if (result.error?.includes("Rate limit exceeded")) {
         return res.status(429).json({
           success: false,
           error: result.error,
-          rateLimitInfo: result.rateLimitInfo
+          rateLimitInfo: result.rateLimitInfo,
         });
-      } else if (result.error?.includes('queued')) {
+      } else if (result.error?.includes("queued")) {
         return res.status(202).json({
           success: false,
           error: result.error,
-          rateLimitInfo: result.rateLimitInfo
+          rateLimitInfo: result.rateLimitInfo,
         });
       } else {
         return res.status(400).json({
           success: false,
           error: result.error,
-          rateLimitInfo: result.rateLimitInfo
+          rateLimitInfo: result.rateLimitInfo,
         });
       }
     }
   } catch (error) {
-    logger.error('Payment processing exception', { error, body: req.body });
+    logger.error("Payment processing exception", { error, body: req.body });
     return res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     });
   }
 });
@@ -266,14 +297,14 @@ app.post('/api/payment', async (req, res) => {
  * GET /api/rate-limit/:userId
  * Get rate limit status for a user
  */
-app.get('/api/rate-limit/:userId', (req, res) => {
+app.get("/api/rate-limit/:userId", (req, res) => {
   try {
     const userId = sanitizeAlphanumeric(req.params.userId, 100);
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid User ID format',
+        error: "Invalid User ID format",
       });
     }
 
@@ -284,14 +315,17 @@ app.get('/api/rate-limit/:userId', (req, res) => {
       success: true,
       data: {
         ...status,
-        queueLength
-      }
+        queueLength,
+      },
     });
   } catch (error) {
-    logger.error('Rate limit query failed', { error, userId: req.params.userId });
+    logger.error("Rate limit query failed", {
+      error,
+      userId: req.params.userId,
+    });
     return res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: "Internal server error",
     });
   }
 });
@@ -300,18 +334,25 @@ app.get('/api/rate-limit/:userId', (req, res) => {
  * GET /api/analytics/:userId
  * Provide analytics insights for a user
  */
-app.get('/api/analytics/:userId', (req, res) => {
+app.get("/api/analytics/:userId", (req, res) => {
   try {
     const userId = sanitizeAlphanumeric(req.params.userId, 100);
     if (!userId) {
-      return res.status(400).json({ success: false, error: 'Invalid User ID format' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid User ID format" });
     }
 
     const analytics = AnalyticsService.generateReport(userId);
     return res.status(200).json(analytics);
   } catch (error) {
-    logger.error('Analytics report generation failed', { error, userId: req.params.userId });
-    return res.status(500).json({ success: false, error: 'Failed to generate analytics report' });
+    logger.error("Analytics report generation failed", {
+      error,
+      userId: req.params.userId,
+    });
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to generate analytics report" });
   }
 });
 
@@ -319,19 +360,29 @@ app.get('/api/analytics/:userId', (req, res) => {
  * GET /api/transaction-status/:transactionId
  * Return current transaction status for real-time updates.
  */
-app.get('/api/transaction-status/:transactionId', (req, res) => {
+app.get("/api/transaction-status/:transactionId", (req, res) => {
   try {
     // Transaction IDs are 64-char hex strings
-    const transactionId = sanitizeString(req.params.transactionId, 64).replace(/[^a-fA-F0-9]/g, '');
+    const transactionId = sanitizeString(req.params.transactionId, 64).replace(
+      /[^a-fA-F0-9]/g,
+      "",
+    );
     if (!transactionId || transactionId.length !== 64) {
-      return res.status(400).json({ success: false, error: 'Invalid transaction ID format' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid transaction ID format" });
     }
 
     const status = getTransactionStatus(transactionId);
     return res.status(200).json({ success: true, transactionId, status });
   } catch (error) {
-    logger.error('Transaction status query failed', { error, transactionId: req.params.transactionId });
-    return res.status(500).json({ success: false, error: 'Unable to retrieve transaction status' });
+    logger.error("Transaction status query failed", {
+      error,
+      transactionId: req.params.transactionId,
+    });
+    return res
+      .status(500)
+      .json({ success: false, error: "Unable to retrieve transaction status" });
   }
 });
 
@@ -339,21 +390,21 @@ app.get('/api/transaction-status/:transactionId', (req, res) => {
  * GET /api/payment/:meterId
  * Get total paid amount for a meter
  */
-app.get('/api/payment/:meterId', async (req, res) => {
+app.get("/api/payment/:meterId", async (req, res) => {
   try {
     const meterId = sanitizeAlphanumeric(req.params.meterId, 50);
 
     if (!meterId) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid Meter ID format',
+        error: "Invalid Meter ID format",
       });
     }
 
     // Import client dynamically
-    const NepaClient = await import('../contract/nepa_client_v2');
+    const NepaClient = await import("../contract/nepa_client_v2");
     const networkConfig = getNetworkConfig();
-    
+
     const client = new NepaClient.Client({
       networkPassphrase: networkConfig.networkPassphrase,
       contractId: networkConfig.contractId,
@@ -368,14 +419,19 @@ app.get('/api/payment/:meterId', async (req, res) => {
       data: {
         meterId,
         totalPaid: formattedTotal,
-        network: networkConfig.networkPassphrase.includes('Test') ? 'testnet' : 'mainnet'
-      }
+        network: networkConfig.networkPassphrase.includes("Test")
+          ? "testnet"
+          : "mainnet",
+      },
     });
   } catch (error) {
-    logger.error('Total paid query failed', { error, meterId: req.params.meterId });
+    logger.error("Total paid query failed", {
+      error,
+      meterId: req.params.meterId,
+    });
     return res.status(500).json({
       success: false,
-      error: 'Failed to retrieve payment information'
+      error: "Failed to retrieve payment information",
     });
   }
 });
@@ -384,70 +440,86 @@ app.get('/api/payment/:meterId', async (req, res) => {
 app.use(apiErrorHandler);
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Endpoint not found'
+    error: "Endpoint not found",
   });
 });
 
 // Helper functions
 
 function getAllowedOrigins(): string[] {
-  const origins = process.env.ALLOWED_ORIGINS?.split(',') || [];
-  
+  const origins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+
   // Add default origins based on environment
-  if (process.env.NODE_ENV === 'development') {
-    origins.push('http://localhost:3000', 'http://localhost:5173');
-  } else if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "development") {
+    origins.push("http://localhost:3000", "http://localhost:5173");
+  } else if (process.env.NODE_ENV === "production") {
     // Add production frontend URL
     const frontendUrl = process.env.FRONTEND_URL;
     if (frontendUrl) {
       origins.push(frontendUrl);
     }
   }
-  
-  return origins.filter(origin => origin.trim().length > 0);
+
+  return origins.filter((origin) => origin.trim().length > 0);
 }
 
 function getNetworkConfig() {
-  const network = process.env.NETWORK || 'testnet';
-  
-  if (network === 'mainnet') {
+  const network = process.env.NETWORK || "testnet";
+
+  if (network === "mainnet") {
     return {
-      networkPassphrase: process.env.NETWORK_PASSPHRASE_MAINNET || 'Public Global Stellar Network ; September 2015',
-      contractId: process.env.CONTRACT_ID_MAINNET || '',
-      rpcUrl: process.env.RPC_URL_MAINNET || 'https://soroban.stellar.org'
+      networkPassphrase:
+        process.env.NETWORK_PASSPHRASE_MAINNET ||
+        "Public Global Stellar Network ; September 2015",
+      contractId: process.env.CONTRACT_ID_MAINNET || "",
+      rpcUrl: process.env.RPC_URL_MAINNET || "https://soroban.stellar.org",
     };
   } else {
     return {
-      networkPassphrase: process.env.NETWORK_PASSPHRASE_TESTNET || 'Test SDF Network ; September 2015',
-      contractId: process.env.CONTRACT_ID_TESTNET || 'CDRRJ7IPYDL36YSK5ZQLBG3LICULETIBXX327AGJQNTWXNKY2UMDO4DA',
-      rpcUrl: process.env.RPC_URL_TESTNET || 'https://soroban-testnet.stellar.org'
+      networkPassphrase:
+        process.env.NETWORK_PASSPHRASE_TESTNET ||
+        "Test SDF Network ; September 2015",
+      contractId:
+        process.env.CONTRACT_ID_TESTNET ||
+        "CDRRJ7IPYDL36YSK5ZQLBG3LICULETIBXX327AGJQNTWXNKY2UMDO4DA",
+      rpcUrl:
+        process.env.RPC_URL_TESTNET || "https://soroban-testnet.stellar.org",
     };
   }
 }
 
 // Start server with HTTPS support
 function startServer() {
-  const httpsEnabled = process.env.HTTPS_ENABLED === 'true';
-  const nodeEnv = process.env.NODE_ENV || 'development';
+  const httpsEnabled = process.env.HTTPS_ENABLED === "true";
+  const nodeEnv = process.env.NODE_ENV || "development";
 
-  if (httpsEnabled && nodeEnv === 'production') {
+  if (httpsEnabled && nodeEnv === "production") {
     // HTTPS configuration for production
     const sslOptions = {
-      key: fs.readFileSync(process.env.SSL_KEY_PATH || '/etc/letsencrypt/live/yourdomain.com/privkey.pem'),
-      cert: fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/letsencrypt/live/yourdomain.com/fullchain.pem'),
-      ca: fs.readFileSync(process.env.SSL_CA_PATH || '/etc/letsencrypt/live/yourdomain.com/chain.pem')
+      key: fs.readFileSync(
+        process.env.SSL_KEY_PATH ||
+          "/etc/letsencrypt/live/yourdomain.com/privkey.pem",
+      ),
+      cert: fs.readFileSync(
+        process.env.SSL_CERT_PATH ||
+          "/etc/letsencrypt/live/yourdomain.com/fullchain.pem",
+      ),
+      ca: fs.readFileSync(
+        process.env.SSL_CA_PATH ||
+          "/etc/letsencrypt/live/yourdomain.com/chain.pem",
+      ),
     };
 
     // Create HTTPS server
     https.createServer(sslOptions, app).listen(443, () => {
-      logger.info('🚀 HTTPS Production Server running on port 443', {
+      logger.info("🚀 HTTPS Production Server running on port 443", {
         environment: nodeEnv,
-        network: process.env.NETWORK || 'testnet',
+        network: process.env.NETWORK || "testnet",
         origins: getAllowedOrigins(),
-        rateLimit: `${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`
+        rateLimit: `${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`,
       });
     });
 
@@ -457,16 +529,19 @@ function startServer() {
       res.redirect(301, `https://${req.headers.host}${req.url}`);
     });
     httpApp.listen(80, () => {
-      console.log('🔄 HTTP redirect server running on port 80');
+      console.log("🔄 HTTP redirect server running on port 80");
     });
   } else {
     // Development HTTP server
     app.listen(PORT, () => {
-      logger.info(`🚀 Wata-Board API Development Server running on port ${PORT}`, {
-        environment: nodeEnv,
-        network: process.env.NETWORK || 'testnet',
-        origins: getAllowedOrigins()
-      });
+      logger.info(
+        `🚀 Wata-Board API Development Server running on port ${PORT}`,
+        {
+          environment: nodeEnv,
+          network: process.env.NETWORK || "testnet",
+          origins: getAllowedOrigins(),
+        },
+      );
     });
   }
 
