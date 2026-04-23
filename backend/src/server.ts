@@ -14,6 +14,7 @@ import monitoringRoutes from "./routes/monitoring";
 import upgradeRoutes from "./routes/upgrade";
 import currencyRoutes from "./routes/currency";
 import analyticsRoutes from "./routes/analytics";
+import notificationRoutes from "./routes/notifications";
 import { handleClientError, apiErrorHandler } from "./middleware/errorHandler";
 import { AnalyticsService } from "./services/analyticsService";
 import {
@@ -151,6 +152,7 @@ app.use("/api/monitoring", monitoringRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/upgrade", upgradeRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
 // ── Configuration versioning (#configuration-versioning) ──
 app.use("/api/config", configRoutes);
 
