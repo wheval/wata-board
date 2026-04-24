@@ -23,26 +23,13 @@ import {
   updateTransactionStatus,
 } from "./services/websocketService";
 import configRoutes from "./routes/config";
-import { captureAndTrackConfig } from "./utils/configSnapshot";
-import {
-  sanitizeString,
-  sanitizeAlphanumeric,
-  sanitizePositiveNumber,
-  validationError,
-  type ValidationError,
-} from "./utils/sanitize";
+import { config } from './config/appConfig';
 
-// Load environment variables
-dotenv.config();
-
-// Capture and version the active configuration at startup
-captureAndTrackConfig();
-
-// Rate limiting configuration
+// Rate limiting configuration from config
 const RATE_LIMIT_CONFIG: RateLimitConfig = {
-  windowMs: 60 * 1000, // 1 minute
-  maxRequests: 5, // 5 transactions per minute
-  queueSize: 10, // Allow 10 queued requests
+  windowMs: config.rateLimits.tierLimits.anonymous.windowMs,
+  maxRequests: config.rateLimits.tierLimits.anonymous.maxRequests,
+  queueSize: config.rateLimits.tierLimits.anonymous.queueSize,
 };
 
 // Initialize payment service with rate limiting
@@ -50,7 +37,7 @@ const paymentService = new PaymentService(RATE_LIMIT_CONFIG);
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.server.port;
 
 // Security middleware with enhanced HTTPS support
 app.use(
@@ -452,20 +439,7 @@ app.use("*", (req, res) => {
 // Helper functions
 
 function getAllowedOrigins(): string[] {
-  const origins = process.env.ALLOWED_ORIGINS?.split(",") || [];
-
-  // Add default origins based on environment
-  if (process.env.NODE_ENV === "development") {
-    origins.push("http://localhost:3000", "http://localhost:5173");
-  } else if (process.env.NODE_ENV === "production") {
-    // Add production frontend URL
-    const frontendUrl = process.env.FRONTEND_URL;
-    if (frontendUrl) {
-      origins.push(frontendUrl);
-    }
-  }
-
-  return origins.filter((origin) => origin.trim().length > 0);
+  return config.cors.allowedOrigins;
 }
 
 function getNetworkConfig() {
@@ -495,31 +469,22 @@ function getNetworkConfig() {
 
 // Start server with HTTPS support
 function startServer() {
-  const httpsEnabled = process.env.HTTPS_ENABLED === "true";
-  const nodeEnv = process.env.NODE_ENV || "development";
+  const httpsEnabled = config.server.httpsEnabled;
+  const nodeEnv = config.server.nodeEnv;
 
   if (httpsEnabled && nodeEnv === "production") {
     // HTTPS configuration for production
     const sslOptions = {
-      key: fs.readFileSync(
-        process.env.SSL_KEY_PATH ||
-          "/etc/letsencrypt/live/yourdomain.com/privkey.pem",
-      ),
-      cert: fs.readFileSync(
-        process.env.SSL_CERT_PATH ||
-          "/etc/letsencrypt/live/yourdomain.com/fullchain.pem",
-      ),
-      ca: fs.readFileSync(
-        process.env.SSL_CA_PATH ||
-          "/etc/letsencrypt/live/yourdomain.com/chain.pem",
-      ),
+      key: fs.readFileSync(config.server.sslKeyPath!),
+      cert: fs.readFileSync(config.server.sslCertPath!),
+      ca: fs.readFileSync(config.server.sslCaPath!),
     };
 
     // Create HTTPS server
     https.createServer(sslOptions, app).listen(443, () => {
       logger.info("🚀 HTTPS Production Server running on port 443", {
         environment: nodeEnv,
-        network: process.env.NETWORK || "testnet",
+        network: config.network.type,
         origins: getAllowedOrigins(),
         rateLimit: `${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`,
       });
@@ -540,7 +505,7 @@ function startServer() {
         `🚀 Wata-Board API Development Server running on port ${PORT}`,
         {
           environment: nodeEnv,
-          network: process.env.NETWORK || "testnet",
+          network: config.network.type,
           origins: getAllowedOrigins(),
         },
       );

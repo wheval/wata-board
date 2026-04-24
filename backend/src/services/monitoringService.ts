@@ -8,11 +8,26 @@
 
 import { metricsCollector, SystemHealth } from '../middleware/metrics';
 import { userTierService } from './userTierService';
+import { database } from '../utils/database';
+import { config } from '../config/appConfig';
 
 // ── Types ──────────────────────────────────────────────────
 
 export interface MonitoringSnapshot {
   health: SystemHealth;
+  database: {
+    queriesPerMinute: number;
+    errorRate: number;
+    averageQueryTime: number;
+    performanceSummary: {
+      totalQueries: number;
+      successfulQueries: number;
+      failedQueries: number;
+      averageQueryTime: number;
+      slowestQuery: number;
+      errorRate: number;
+    };
+  };
   rateLimiting: {
     userMetrics: Record<string, { count: number; errors: number }>;
     tierDistribution: Record<string, number>;
@@ -35,9 +50,9 @@ export interface AlertConfig {
 }
 
 const DEFAULT_ALERT_CONFIG: AlertConfig = {
-  errorRateThreshold: 0.1,
-  requestsPerMinuteThreshold: 500,
-  responseTimeMsThreshold: 5000,
+  errorRateThreshold: config.monitoring.alertThresholds.errorRate,
+  requestsPerMinuteThreshold: config.monitoring.alertThresholds.requestsPerMinute,
+  responseTimeMsThreshold: config.monitoring.alertThresholds.responseTimeMs,
 };
 
 // ── Service ────────────────────────────────────────────────
@@ -67,6 +82,12 @@ class MonitoringService {
 
     return {
       health,
+      database: {
+        queriesPerMinute: health.databaseQueriesPerMinute,
+        errorRate: health.databaseErrorRate,
+        averageQueryTime: health.averageDatabaseQueryTime,
+        performanceSummary: database.getPerformanceSummary(),
+      },
       rateLimiting: { userMetrics, tierDistribution },
       endpoints,
       alerts: this.alerts.slice(-50),
