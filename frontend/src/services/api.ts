@@ -57,8 +57,8 @@ class ApiService {
   }
 
   private getProductionApiUrl(): string {
-    // In production, use the configured API URL
-    return import.meta.env.VITE_API_URL || 'https://your-api-domain.com';
+    // In production, use the configured API URL. This must be provided via VITE_API_URL.
+    return import.meta.env.VITE_API_URL || '';
   }
 
   private async request<T>(

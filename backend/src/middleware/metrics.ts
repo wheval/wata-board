@@ -28,6 +28,7 @@ export interface SystemHealth {
   memoryUsageMb: number;
   activeConnections: number;
   requestsPerMinute: number;
+  avgResponseTimeMs: number;
   errorRate: number;
   databaseQueriesPerMinute: number;
   databaseErrorRate: number;
@@ -109,6 +110,11 @@ class MetricsCollector {
     const dbErrors = recentDbMetrics.filter((m) => !m.success);
     const mem = process.memoryUsage();
 
+    const avgResponseTimeMs = recentMetrics.length
+      ? Math.round(
+          recentMetrics.reduce((sum, m) => sum + m.responseTimeMs, 0) /
+            recentMetrics.length,
+        )
     const successfulDbQueries = recentDbMetrics.filter(m => m.success);
     const avgDbTime = successfulDbQueries.length > 0
       ? successfulDbQueries.reduce((sum, m) => sum + m.durationMs, 0) / successfulDbQueries.length
@@ -119,6 +125,9 @@ class MetricsCollector {
       memoryUsageMb: Math.round(mem.heapUsed / 1024 / 1024),
       activeConnections: this.activeConnections,
       requestsPerMinute: recentMetrics.length,
+      avgResponseTimeMs,
+      errorRate:
+        recentMetrics.length > 0 ? errors.length / recentMetrics.length : 0,
       errorRate: recentMetrics.length > 0 ? errors.length / recentMetrics.length : 0,
       databaseQueriesPerMinute: recentDbMetrics.length,
       databaseErrorRate: recentDbMetrics.length > 0 ? dbErrors.length / recentDbMetrics.length : 0,

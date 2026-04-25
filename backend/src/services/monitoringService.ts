@@ -7,7 +7,9 @@
  */
 
 import { metricsCollector, SystemHealth } from '../middleware/metrics';
+import { envConfig } from '../utils/env';
 import { userTierService } from './userTierService';
+import { notifyAlert } from './alertingService';
 import { database } from '../utils/database';
 import { config } from '../config/appConfig';
 
@@ -50,6 +52,9 @@ export interface AlertConfig {
 }
 
 const DEFAULT_ALERT_CONFIG: AlertConfig = {
+  errorRateThreshold: envConfig.ALERT_ERROR_RATE_THRESHOLD,
+  requestsPerMinuteThreshold: envConfig.ALERT_REQUESTS_PER_MINUTE_THRESHOLD,
+  responseTimeMsThreshold: envConfig.ALERT_RESPONSE_TIME_MS_THRESHOLD,
   errorRateThreshold: config.monitoring.alertThresholds.errorRate,
   requestsPerMinuteThreshold: config.monitoring.alertThresholds.requestsPerMinute,
   responseTimeMsThreshold: config.monitoring.alertThresholds.responseTimeMs,
@@ -121,6 +126,15 @@ class MonitoringService {
         timestamp: now,
       });
     }
+
+    if (health.avgResponseTimeMs > this.alertConfig.responseTimeMsThreshold) {
+      this.addAlert({
+        id: `alert-response-${now}`,
+        level: 'warning',
+        message: `Average response time ${health.avgResponseTimeMs}ms exceeds threshold ${this.alertConfig.responseTimeMsThreshold}ms`,
+        timestamp: now,
+      });
+    }
   }
 
   private addAlert(alert: Alert) {
@@ -128,6 +142,8 @@ class MonitoringService {
     if (this.alerts.length > 200) {
       this.alerts = this.alerts.slice(-200);
     }
+
+    void notifyAlert(alert);
   }
 }
 

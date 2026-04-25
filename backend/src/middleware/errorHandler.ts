@@ -1,5 +1,6 @@
 import express from 'express';
 import logger from '../utils/logger';
+import { captureException } from '../utils/errorTracker';
 import { sanitizeString, sanitizeUrl, sanitizeDescription } from '../utils/sanitize';
 
 export interface ClientErrorRequestBody {
@@ -40,6 +41,14 @@ export const handleClientError = (req: express.Request, res: express.Response) =
     userAgent: req.get('user-agent'),
   });
 
+  void captureException(new Error(payload.message), {
+    source: 'client-error',
+    path: req.path,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    url: payload.url,
+  });
+
   res.status(202).json({ success: true, message: 'Client error logged' });
 };
 
@@ -61,7 +70,14 @@ export const apiErrorHandler: express.ErrorRequestHandler = (err, req, res, next
     stack: err?.stack,
     path: req.path,
     method: req.method,
-    body: req.body
+    body: req.body,
+  });
+
+  void captureException(err, {
+    source: 'server-error',
+    path: req.path,
+    method: req.method,
+    body: req.body,
   });
 
   res.status(500).json({ success: false, error: 'Internal server error' });

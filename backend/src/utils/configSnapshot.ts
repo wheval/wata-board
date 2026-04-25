@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import logger from './logger';
+import { envConfig } from './env';
 import { CONFIG_VERSION } from '../config/configVersion';
 import { TIER_RATE_LIMITS } from '../config/rateLimits';
 
@@ -30,21 +31,26 @@ function buildConfigValues(): Record<string, unknown> {
   const env = process.env;
 
   const raw: Record<string, unknown> = {
-    PORT: env.PORT || '3001',
-    NODE_ENV: env.NODE_ENV || 'development',
-    HTTPS_ENABLED: env.HTTPS_ENABLED || 'false',
-    NETWORK: env.NETWORK || 'testnet',
-    ALLOWED_ORIGINS: env.ALLOWED_ORIGINS || '',
-    FRONTEND_URL: env.FRONTEND_URL || '',
-    CONTRACT_ID_TESTNET: env.CONTRACT_ID_TESTNET || 'CDRRJ7IPYDL36YSK5ZQLBG3LICULETIBXX327AGJQNTWXNKY2UMDO4DA',
-    CONTRACT_ID_MAINNET: env.CONTRACT_ID_MAINNET || 'MAINNET_CONTRACT_ID_HERE',
-    RPC_URL_TESTNET: env.RPC_URL_TESTNET || 'https://soroban-testnet.stellar.org',
-    RPC_URL_MAINNET: env.RPC_URL_MAINNET || 'https://soroban.stellar.org',
-    NETWORK_PASSPHRASE_TESTNET: env.NETWORK_PASSPHRASE_TESTNET || 'Test SDF Network ; September 2015',
-    NETWORK_PASSPHRASE_MAINNET: env.NETWORK_PASSPHRASE_MAINNET || 'Public Global Stellar Network ; September 2015',
+    PORT: envConfig.PORT,
+    NODE_ENV: envConfig.NODE_ENV,
+    HTTPS_ENABLED: envConfig.HTTPS_ENABLED.toString(),
+    NETWORK: envConfig.NETWORK,
+    ALLOWED_ORIGINS: envConfig.ALLOWED_ORIGINS.join(','),
+    FRONTEND_URL: envConfig.FRONTEND_URL || '',
+    CONTRACT_ID_TESTNET: envConfig.CONTRACT_ID_TESTNET,
+    CONTRACT_ID_MAINNET: envConfig.CONTRACT_ID_MAINNET,
+    RPC_URL_TESTNET: envConfig.RPC_URL_TESTNET,
+    RPC_URL_MAINNET: envConfig.RPC_URL_MAINNET,
+    NETWORK_PASSPHRASE_TESTNET: envConfig.NETWORK_PASSPHRASE_TESTNET,
+    NETWORK_PASSPHRASE_MAINNET: envConfig.NETWORK_PASSPHRASE_MAINNET,
+    ALERT_ERROR_RATE_THRESHOLD: envConfig.ALERT_ERROR_RATE_THRESHOLD,
+    ALERT_REQUESTS_PER_MINUTE_THRESHOLD: envConfig.ALERT_REQUESTS_PER_MINUTE_THRESHOLD,
+    ALERT_RESPONSE_TIME_MS_THRESHOLD: envConfig.ALERT_RESPONSE_TIME_MS_THRESHOLD,
+    ERROR_TRACKING_ENDPOINT: envConfig.ERROR_TRACKING_ENDPOINT ? '[SET]' : '[MISSING]',
+    ALERT_WEBHOOK_URL: envConfig.ALERT_WEBHOOK_URL ? '[SET]' : '[MISSING]',
     // Secrets are never stored — only their presence is recorded
-    ADMIN_SECRET_KEY: env.ADMIN_SECRET_KEY ? '[SET]' : '[MISSING]',
-    API_KEY: env.API_KEY ? '[SET]' : '[MISSING]',
+    ADMIN_SECRET_KEY: envConfig.ADMIN_SECRET_KEY ? '[SET]' : '[MISSING]',
+    API_KEY: envConfig.API_KEY ? '[SET]' : '[MISSING]',
     // Rate limit tiers (static config)
     TIER_RATE_LIMITS: TIER_RATE_LIMITS,
   };

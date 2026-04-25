@@ -10,10 +10,10 @@ import {
 
 const router = express.Router();
 
-// VAPID keys (in production, these should be stored securely)
-const VAPID_PUBLIC_KEY = 'BMxzFTLdK7yVdQ3kL8X8Q2rXJ3h8yN7k5Q2rXJ3h8yN7k5Q';
-const VAPID_PRIVATE_KEY = 'your-private-key-here'; // Replace with actual private key
-const VAPID_EMAIL = 'support@wata-board.com';
+// VAPID keys and push notification settings should be configured from environment variables
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+const VAPID_EMAIL = process.env.VAPID_EMAIL || 'support@wata-board.com';
 
 // In-memory storage for subscriptions (in production, use a database)
 const subscriptions = new Map<string, webpush.PushSubscription>();
