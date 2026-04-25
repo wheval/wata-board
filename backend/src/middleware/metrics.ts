@@ -17,16 +17,27 @@ export interface ApiMetric {
   userId: string;
 }
 
+export interface DatabaseMetric {
+  timestamp: number;
+  durationMs: number;
+  success: boolean;
+}
+
 export interface SystemHealth {
   uptime: number;
   memoryUsageMb: number;
   activeConnections: number;
   requestsPerMinute: number;
+  avgResponseTimeMs: number;
   errorRate: number;
+  databaseQueriesPerMinute: number;
+  databaseErrorRate: number;
+  averageDatabaseQueryTime: number;
 }
 
 class MetricsCollector {
   private metrics: ApiMetric[] = [];
+  private databaseMetrics: DatabaseMetric[] = [];
   private readonly maxRetention = 10_000;
   private activeConnections = 0;
 
@@ -62,6 +73,21 @@ class MetricsCollector {
     };
   }
 
+  /** Record a database query metric */
+  recordDatabaseQuery(durationMs: number, success: boolean) {
+    const metric: DatabaseMetric = {
+      timestamp: Date.now(),
+      durationMs,
+      success,
+    };
+
+    this.databaseMetrics.push(metric);
+
+    if (this.databaseMetrics.length > this.maxRetention) {
+      this.databaseMetrics = this.databaseMetrics.slice(-this.maxRetention);
+    }
+  }
+
   // ── Query helpers ──────────────────────────────────────────
 
   /** Metrics within the given time window (default 1 min). */
@@ -70,19 +96,42 @@ class MetricsCollector {
     return this.metrics.filter((m) => m.timestamp > cutoff);
   }
 
+  /** Database metrics within the given time window (default 1 min). */
+  getDatabaseMetrics(windowMs: number = 60_000): DatabaseMetric[] {
+    const cutoff = Date.now() - windowMs;
+    return this.databaseMetrics.filter((m) => m.timestamp > cutoff);
+  }
+
   /** Aggregated system health snapshot. */
   getSystemHealth(): SystemHealth {
     const recentMetrics = this.getMetrics(60_000);
+    const recentDbMetrics = this.getDatabaseMetrics(60_000);
     const errors = recentMetrics.filter((m) => m.statusCode >= 400);
+    const dbErrors = recentDbMetrics.filter((m) => !m.success);
     const mem = process.memoryUsage();
+
+    const avgResponseTimeMs = recentMetrics.length
+      ? Math.round(
+          recentMetrics.reduce((sum, m) => sum + m.responseTimeMs, 0) /
+            recentMetrics.length,
+        )
+    const successfulDbQueries = recentDbMetrics.filter(m => m.success);
+    const avgDbTime = successfulDbQueries.length > 0
+      ? successfulDbQueries.reduce((sum, m) => sum + m.durationMs, 0) / successfulDbQueries.length
+      : 0;
 
     return {
       uptime: process.uptime(),
       memoryUsageMb: Math.round(mem.heapUsed / 1024 / 1024),
       activeConnections: this.activeConnections,
       requestsPerMinute: recentMetrics.length,
+      avgResponseTimeMs,
       errorRate:
         recentMetrics.length > 0 ? errors.length / recentMetrics.length : 0,
+      errorRate: recentMetrics.length > 0 ? errors.length / recentMetrics.length : 0,
+      databaseQueriesPerMinute: recentDbMetrics.length,
+      databaseErrorRate: recentDbMetrics.length > 0 ? dbErrors.length / recentDbMetrics.length : 0,
+      averageDatabaseQueryTime: Math.round(avgDbTime),
     };
   }
 

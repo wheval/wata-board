@@ -7,12 +7,29 @@
  */
 
 import { metricsCollector, SystemHealth } from '../middleware/metrics';
+import { envConfig } from '../utils/env';
 import { userTierService } from './userTierService';
+import { notifyAlert } from './alertingService';
+import { database } from '../utils/database';
+import { config } from '../config/appConfig';
 
 // ── Types ──────────────────────────────────────────────────
 
 export interface MonitoringSnapshot {
   health: SystemHealth;
+  database: {
+    queriesPerMinute: number;
+    errorRate: number;
+    averageQueryTime: number;
+    performanceSummary: {
+      totalQueries: number;
+      successfulQueries: number;
+      failedQueries: number;
+      averageQueryTime: number;
+      slowestQuery: number;
+      errorRate: number;
+    };
+  };
   rateLimiting: {
     userMetrics: Record<string, { count: number; errors: number }>;
     tierDistribution: Record<string, number>;
@@ -35,9 +52,12 @@ export interface AlertConfig {
 }
 
 const DEFAULT_ALERT_CONFIG: AlertConfig = {
-  errorRateThreshold: 0.1,
-  requestsPerMinuteThreshold: 500,
-  responseTimeMsThreshold: 5000,
+  errorRateThreshold: envConfig.ALERT_ERROR_RATE_THRESHOLD,
+  requestsPerMinuteThreshold: envConfig.ALERT_REQUESTS_PER_MINUTE_THRESHOLD,
+  responseTimeMsThreshold: envConfig.ALERT_RESPONSE_TIME_MS_THRESHOLD,
+  errorRateThreshold: config.monitoring.alertThresholds.errorRate,
+  requestsPerMinuteThreshold: config.monitoring.alertThresholds.requestsPerMinute,
+  responseTimeMsThreshold: config.monitoring.alertThresholds.responseTimeMs,
 };
 
 // ── Service ────────────────────────────────────────────────
@@ -67,6 +87,12 @@ class MonitoringService {
 
     return {
       health,
+      database: {
+        queriesPerMinute: health.databaseQueriesPerMinute,
+        errorRate: health.databaseErrorRate,
+        averageQueryTime: health.averageDatabaseQueryTime,
+        performanceSummary: database.getPerformanceSummary(),
+      },
       rateLimiting: { userMetrics, tierDistribution },
       endpoints,
       alerts: this.alerts.slice(-50),
@@ -100,6 +126,15 @@ class MonitoringService {
         timestamp: now,
       });
     }
+
+    if (health.avgResponseTimeMs > this.alertConfig.responseTimeMsThreshold) {
+      this.addAlert({
+        id: `alert-response-${now}`,
+        level: 'warning',
+        message: `Average response time ${health.avgResponseTimeMs}ms exceeds threshold ${this.alertConfig.responseTimeMsThreshold}ms`,
+        timestamp: now,
+      });
+    }
   }
 
   private addAlert(alert: Alert) {
@@ -107,6 +142,8 @@ class MonitoringService {
     if (this.alerts.length > 200) {
       this.alerts = this.alerts.slice(-200);
     }
+
+    void notifyAlert(alert);
   }
 }
 

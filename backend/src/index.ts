@@ -7,22 +7,25 @@ import { getCurrentNetworkConfig } from './utils/network-config';
 async function main() {
     // Get current network configuration
     const networkConfig = getCurrentNetworkConfig();
-    
+
     const client = new NepaClient.Client({
         networkPassphrase: networkConfig.networkPassphrase,
         contractId: networkConfig.contractId,
         rpcUrl: networkConfig.rpcUrl,
     });
 
-    // Admin secret key is validated at startup by envConfig
-    const adminKeypair = Keypair.fromSecret(envConfig.ADMIN_SECRET_KEY);
+    // Get admin secret key using secure key management
+    const { secureEnvConfig } = await import('./utils/secureEnvConfig');
+    const adminSecret = secureEnvConfig.getAdminSecretKey();
 
-    const meterId = "METER-001";
+    const adminKeypair = Keypair.fromSecret(adminSecret);
+
+    const meterId = process.env.PAYMENT_METER_ID || 'METER-001';
 
     console.log(`Processing payment on ${networkConfig.networkPassphrase.includes('Test') ? 'Testnet' : 'Mainnet'}...`);
 
     // Amount as u32 (matches contract)
-    const amount = 10;
+    const amount = Number(process.env.PAYMENT_AMOUNT || '10');
 
     const tx = await client.pay_bill({
         meter_id: meterId,

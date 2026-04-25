@@ -202,6 +202,8 @@ For detailed CORS configuration, see [CORS_IMPLEMENTATION.md](./CORS_IMPLEMENTAT
 
 The project uses environment variables to manage configuration. Template files are provided for both frontend and backend components.
 
+For a complete and detailed list of all configuration options, see [CONFIGURATION.md](./CONFIGURATION.md).
+
 ### Setup Instructions
 
 1. **Frontend Environment Setup**:
