@@ -4,6 +4,10 @@ import './index.css'
 import App from './App.tsx'
 import { registerServiceWorker, listenToServiceWorkerMessages } from './utils/serviceWorkerRegistration'
 import './i18n'
+import { initFrontendConfigTracking } from './utils/configVersion'
+
+// Track and version the active frontend configuration at startup
+initFrontendConfigTracking();
 
 // Register service worker for offline support
 registerServiceWorker().then((result) => {
