@@ -20,10 +20,21 @@ export interface ConfigChangeEntry {
 }
 
 /** Current configuration schema version */
-export const CONFIG_VERSION = '1.0.0';
+export const CONFIG_VERSION = '1.1.0';
 
 /** Full changelog – newest entry first */
 export const CONFIG_CHANGELOG: ConfigChangeEntry[] = [
+  {
+    version: '1.1.0',
+    date: '2026-04-24',
+    component: 'backend',
+    description: 'Added environment-specific configuration loader with structured config objects for dev/prod/test environments. Includes monitoring config and SSL settings.',
+    keys: [
+      'AppConfig', 'server.*', 'cors.*', 'network.*', 'security.*', 'rateLimits.*', 'monitoring.*',
+      'HTTPS_ENABLED', 'SSL_KEY_PATH', 'SSL_CERT_PATH', 'SSL_CA_PATH',
+      'KEY_MASTER_PASSWORD', 'ALLOWED_ORIGINS', 'FRONTEND_URL',
+    ],
+  },
   {
     version: '1.0.0',
     date: '2026-04-23',

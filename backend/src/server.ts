@@ -35,12 +35,16 @@ import {
 
 // Capture and version the active configuration at startup
 captureAndTrackConfig();
+import { config } from './config/appConfig';
 
-// Rate limiting configuration
+// Rate limiting configuration from config
 const RATE_LIMIT_CONFIG: RateLimitConfig = {
   windowMs: envConfig.RATE_LIMIT_WINDOW_MS,
   maxRequests: envConfig.RATE_LIMIT_MAX_REQUESTS,
   queueSize: envConfig.RATE_LIMIT_QUEUE_SIZE,
+  windowMs: config.rateLimits.tierLimits.anonymous.windowMs,
+  maxRequests: config.rateLimits.tierLimits.anonymous.maxRequests,
+  queueSize: config.rateLimits.tierLimits.anonymous.queueSize,
 };
 
 // Initialize payment service with rate limiting
@@ -49,6 +53,7 @@ const paymentService = new PaymentService(RATE_LIMIT_CONFIG);
 // Create Express app
 const app = express();
 const PORT = envConfig.PORT;
+const PORT = config.server.port;
 
 // Security middleware with enhanced HTTPS support
 app.use(
@@ -466,6 +471,7 @@ function getAllowedOrigins(): string[] {
   }
 
   return origins.filter((origin) => origin.trim().length > 0);
+  return config.cors.allowedOrigins;
 }
 
 function getNetworkConfig() {
@@ -490,6 +496,8 @@ function getNetworkConfig() {
 function startServer() {
   const httpsEnabled = envConfig.HTTPS_ENABLED;
   const nodeEnv = envConfig.NODE_ENV;
+  const httpsEnabled = config.server.httpsEnabled;
+  const nodeEnv = config.server.nodeEnv;
 
   if (httpsEnabled && nodeEnv === "production") {
     // HTTPS configuration for production
@@ -504,6 +512,9 @@ function startServer() {
       ),
       ca: fs.readFileSync(
         envConfig.SSL_CA_PATH ||
+      key: fs.readFileSync(config.server.sslKeyPath!),
+      cert: fs.readFileSync(config.server.sslCertPath!),
+      ca: fs.readFileSync(config.server.sslCaPath!),
     };
 
     // Create HTTPS server
@@ -511,6 +522,7 @@ function startServer() {
       logger.info("🚀 HTTPS Production Server running on port 443", {
         environment: nodeEnv,
         network: envConfig.NETWORK,
+        network: config.network.type,
         origins: getAllowedOrigins(),
         rateLimit: `${RATE_LIMIT_CONFIG.maxRequests} requests per ${RATE_LIMIT_CONFIG.windowMs / 1000} seconds`,
       });
@@ -532,6 +544,7 @@ function startServer() {
         {
           environment: nodeEnv,
           network: envConfig.NETWORK,
+          network: config.network.type,
           origins: getAllowedOrigins(),
         },
       );
