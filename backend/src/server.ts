@@ -1,3 +1,25 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import dotenv from 'dotenv';
+import https from 'https';
+import fs from 'fs';
+import { PaymentService, PaymentRequest } from './payment-service';
+import { RateLimiter, RateLimitConfig } from './rate-limiter';
+import logger, { auditLogger } from './utils/logger';
+import { HealthService } from './utils/health';
+import { metricsCollector } from './middleware/metrics';
+import { tieredRateLimiter } from './middleware/rateLimiter';
+import monitoringRoutes from './routes/monitoring';
+import upgradeRoutes from './routes/upgrade';
+import currencyRoutes from './routes/currency';
+import providerRoutes from './routes/providers';
+import { handleClientError, apiErrorHandler } from './middleware/errorHandler';
+import { AnalyticsService } from './services/analyticsService';
+import { getTransactionStatus, startWebsocketService, updateTransactionStatus } from './services/websocketService';
+import { ProviderService } from './services/providerService';
+import { MultiProviderPaymentService } from './services/multiProviderPaymentService';
+import { ProviderPaymentRequest } from './types/provider';
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -47,8 +69,13 @@ const RATE_LIMIT_CONFIG: RateLimitConfig = {
   queueSize: config.rateLimits.tierLimits.anonymous.queueSize,
 };
 
-// Initialize payment service with rate limiting
+// Initialize services
 const paymentService = new PaymentService(RATE_LIMIT_CONFIG);
+const providerService = new ProviderService();
+const multiProviderPaymentService = new MultiProviderPaymentService(RATE_LIMIT_CONFIG, providerService);
+
+// Load providers from environment variables
+providerService.loadProvidersFromEnvironment();
 
 // Create Express app
 const app = express();
@@ -151,6 +178,10 @@ app.use(metricsCollector.middleware());
 app.use("/api/payment", tieredRateLimiter.middleware());
 
 // ── New route groups (#99, #94, #101) ──
+app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/currency', currencyRoutes);
+app.use('/api/upgrade', upgradeRoutes);
+app.use('/api/providers', providerRoutes);
 app.use("/api/monitoring", monitoringRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/upgrade", upgradeRoutes);
@@ -198,7 +229,7 @@ app.get("/health/full", async (req, res) => {
 
 /**
  * POST /api/payment
- * Process a utility payment with rate limiting
+ * Process a utility payment with rate limiting (legacy endpoint - uses default provider)
  */
 app.post("/api/payment", async (req, res) => {
   try {
@@ -298,6 +329,98 @@ app.post("/api/payment", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Internal server error",
+    });
+  }
+});
+
+/**
+ * POST /api/payment/multi-provider
+ * Process a utility payment with multi-provider support
+ */
+app.post('/api/payment/multi-provider', async (req, res) => {
+  try {
+    const { meter_id, amount, userId, providerId } = req.body;
+
+    // Validate request body
+    if (!meter_id || !amount || !userId || !providerId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: meter_id, amount, userId, providerId'
+      });
+    }
+
+    if (typeof meter_id !== 'string' || typeof amount !== 'number' || typeof userId !== 'string' || typeof providerId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid field types: meter_id (string), amount (number), userId (string), providerId (string)'
+      });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Amount must be greater than 0'
+      });
+    }
+
+    const paymentRequest: ProviderPaymentRequest = {
+      meter_id: meter_id.trim(),
+      amount,
+      userId: userId.trim(),
+      providerId: providerId.trim()
+    };
+
+    const result = await multiProviderPaymentService.processPayment(paymentRequest);
+
+    // Add CORS headers and rate limit info to response
+    res.set('X-Rate-Limit-Remaining', result.rateLimitInfo?.remainingRequests?.toString() || '0');
+
+    if (result.success) {
+      if (result.transactionId) {
+        updateTransactionStatus(result.transactionId, 'confirmed');
+      }
+      return res.status(200).json({
+        success: true,
+        transactionId: result.transactionId,
+        providerId: result.providerId,
+        rateLimitInfo: {
+          remainingRequests: result.rateLimitInfo?.remainingRequests,
+          resetTime: result.rateLimitInfo?.resetTime
+        }
+      });
+    } else {
+      if (result.transactionId) {
+        updateTransactionStatus(result.transactionId, 'failed');
+      }
+      // Handle rate limit errors with appropriate status codes
+      if (result.error?.includes('Rate limit exceeded')) {
+        return res.status(429).json({
+          success: false,
+          error: result.error,
+          providerId: result.providerId,
+          rateLimitInfo: result.rateLimitInfo
+        });
+      } else if (result.error?.includes('queued')) {
+        return res.status(202).json({
+          success: false,
+          error: result.error,
+          providerId: result.providerId,
+          rateLimitInfo: result.rateLimitInfo
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+          providerId: result.providerId,
+          rateLimitInfo: result.rateLimitInfo
+        });
+      }
+    }
+  } catch (error) {
+    logger.error('Multi-provider payment processing exception', { error, body: req.body });
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
     });
   }
 });
