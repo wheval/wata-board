@@ -44,6 +44,10 @@ export default defineConfig({
     // Ensure proper CORS handling in production builds
     rollupOptions: {
       output: {
+// Add content hash to filenames for cache busting
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
             if (id.includes('react') || id.includes('react-dom')) {
