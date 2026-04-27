@@ -31,6 +31,7 @@ import { isConnected, requestAccess, signTransaction, setWalletType } from "./ut
 import { getCurrentNetworkConfig, getNetworkFromEnv } from './utils/network-config';
 import { useWalletBalance } from './hooks/useWalletBalance';
 import { useFeeEstimation } from './hooks/useFeeEstimation';
+import { useOfflineSync } from './hooks/useOfflineSync';
 import { handleOfflineError, getOfflineErrorMessage } from './utils/offlineApi';
 
 import { announceToScreenReader, generateId, setupKeyboardNavigation, setupFocusVisible } from './utils/accessibility';
@@ -163,7 +164,38 @@ const Home = memo(() => {
       const signedResponse = await signTransaction(transaction.toXDR());
       const signedXdr = typeof signedResponse === 'string' ? signedResponse : (signedResponse as any).signedTxXdr;
 
-      const submitResult = await server.submitTransaction(signedXdr);
+      const submitWithRetry = async () => {
+        let lastError: unknown;
+        const maxAttempts = 4;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          try {
+            const result = await server.submitTransaction(signedXdr);
+            return result;
+          } catch (submissionError) {
+            lastError = submissionError;
+            const message = submissionError instanceof Error ? submissionError.message.toLowerCase() : String(submissionError).toLowerCase();
+            const retryable =
+              message.includes('timeout') ||
+              message.includes('network') ||
+              message.includes('rate') ||
+              message.includes('congestion') ||
+              message.includes('tx_insufficient_fee') ||
+              message.includes('503');
+
+            if (!retryable || attempt === maxAttempts - 1) {
+              break;
+            }
+
+            const delayMs = Math.min(1000 * (2 ** attempt), 8000);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+        }
+
+        throw lastError instanceof Error ? lastError : new Error('Transaction submission failed');
+      };
+
+      const submitResult = await submitWithRetry();
 
       setStatus(t('payment.status.paymentSuccess', { id: (submitResult as any).hash.slice(0, 10) }));
       announceToScreenReader(t('payment.status.paymentSuccess', { id: (submitResult as any).hash.slice(0, 10) }));
@@ -419,6 +451,8 @@ const Home = memo(() => {
 });
 
 export default function App() {
+  useOfflineSync();
+
   useEffect(() => {
     setupKeyboardNavigation();
     setupFocusVisible();
