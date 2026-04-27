@@ -38,6 +38,16 @@ export default defineConfig({
           router: ['react-router-dom'],
           ui: ['@tailwindcss/vite', 'tailwindcss'],
           utils: ['react-i18next', 'i18next', 'i18next-browser-languagedetector']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor';
+            }
+            if (id.includes('stellar')) {
+              return 'stellar';
+            }
+            return 'deps';
+          }
         }
       }
     },
