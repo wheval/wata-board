@@ -71,6 +71,7 @@ export class SchedulingService {
       return { success: false, error: 'Failed to cancel schedule' };
     }
   }
+<<<<<<< HEAD
 
   validateSchedule(formData: ScheduleFormData): ScheduleValidationResult {
     const errors: any[] = [];
