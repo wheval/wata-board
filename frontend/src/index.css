@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: 'Inter', system-ui, sans-serif;
   text-rendering: optimizeLegibility;
@@ -49,14 +51,11 @@ body {
 
 /* Mobile-first responsive improvements */
 @media (max-width: 640px) {
-
-  /* Ensure proper viewport scaling on mobile */
   html {
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
 
-  /* Improve touch targets */
   button,
   input,
   textarea,
@@ -65,12 +64,10 @@ body {
     min-width: 44px;
   }
 
-  /* Prevent horizontal scroll */
   body {
     overflow-x: hidden;
   }
 
-  /* Improve readability on mobile */
   .text-responsive {
     font-size: clamp(0.875rem, 2.5vw, 1rem);
   }
@@ -94,7 +91,6 @@ body {
 
 /* Touch-friendly focus styles */
 @media (hover: none) and (pointer: coarse) {
-
   button:focus-visible,
   input:focus-visible,
   textarea:focus-visible,
@@ -112,7 +108,6 @@ body {
 
 /* Prevent zoom on input focus in iOS */
 @supports (-webkit-touch-callout: none) {
-
   input[type="text"],
   input[type="number"],
   input[type="email"],
@@ -157,20 +152,10 @@ body {
   .high-contrast {
     filter: contrast(1.5) !important;
   }
-
-  /* Ensure text remains readable in high contrast */
-  .text-slate-100 {
-    color: #ffffff !important;
-  }
-
-  .text-slate-300 {
-    color: #e2e8f0 !important;
-  }
 }
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -183,22 +168,10 @@ body {
 
 /* Keyboard navigation focus styles */
 .keyboard-navigation *:focus {
+  outline: 3px solid #38bdf8 !important;
   outline: 3px solid var(--primary-glow) !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px var(--primary-glow-dim) !important;
-}
-
-/* Screen reader only content */
-.sr-only {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
 }
 
 /* Focus visible improvements */
@@ -207,28 +180,11 @@ body {
   outline-offset: 2px;
 }
 
-/* ARIA live regions */
-[aria-live="polite"] {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-[aria-live="assertive"] {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
 /* Touch target size improvements */
-button, 
-a, 
-input, 
-select, 
+button,
+a,
+input,
+select,
 textarea {
   min-width: 44px;
   min-height: 44px;
@@ -242,7 +198,6 @@ textarea {
   box-shadow: 0 0 0 4px var(--primary-glow-dim) !important;
 }
 
-/* Fallback for browsers that don't support focus-visible */
 *:focus {
   outline: 2px solid var(--primary-glow);
   outline-offset: 2px;
@@ -262,12 +217,12 @@ textarea {
 }
 
 @media (max-width: 640px) {
-  button, 
-  a, 
-  input, 
-  select, 
+  button,
+  a,
+  input,
+  select,
   textarea {
-    min-width: 48px; /* Increased for mobile specifically */
+    min-width: 48px;
     min-height: 48px;
   }
 }
@@ -310,7 +265,7 @@ legend {
   border-radius: 0.25rem;
 }
 
-/* Table accessibility for future use */
+/* Table styles - theme aware */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -324,6 +279,7 @@ td {
 }
 
 th {
+  font-weight: 600;
   background-color: var(--surface-medium);
   font-weight: 600;
   color: var(--text-primary);
@@ -335,11 +291,7 @@ ol {
   padding-left: 1.5rem;
 }
 
-li {
-  margin-bottom: 0.5rem;
-}
-
-/* Code accessibility */
+/* Code blocks - theme aware */
 code {
   background-color: var(--surface-medium);
   color: var(--text-primary);
@@ -357,4 +309,14 @@ pre {
   overflow-x: auto;
   font-family: monospace;
   font-size: 0.875rem;
+}
+
+/* List accessibility */
+ul,
+ol {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
 }
