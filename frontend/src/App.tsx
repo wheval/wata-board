@@ -129,7 +129,7 @@ const Home = memo(() => {
       // Create and sign transaction
       const accessResult = await requestAccess();
       if (accessResult.error || !accessResult.address) {
-        throw new Error(accessResult.error || 'Wallet access denied');
+        throw new Error(accessResult.error || `We couldn't access your wallet. Please reconnect and try again.`);
       }
       const pubKeyString = accessResult.address;
 
