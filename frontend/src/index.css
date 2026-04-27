@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: system-ui, sans-serif;
   text-rendering: optimizeLegibility;
@@ -18,14 +20,11 @@ body {
 
 /* Mobile-first responsive improvements */
 @media (max-width: 640px) {
-
-  /* Ensure proper viewport scaling on mobile */
   html {
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
 
-  /* Improve touch targets */
   button,
   input,
   textarea,
@@ -34,12 +33,10 @@ body {
     min-width: 44px;
   }
 
-  /* Prevent horizontal scroll */
   body {
     overflow-x: hidden;
   }
 
-  /* Improve readability on mobile */
   .text-responsive {
     font-size: clamp(0.875rem, 2.5vw, 1rem);
   }
@@ -63,7 +60,6 @@ body {
 
 /* Touch-friendly focus styles */
 @media (hover: none) and (pointer: coarse) {
-
   button:focus-visible,
   input:focus-visible,
   textarea:focus-visible,
@@ -81,7 +77,6 @@ body {
 
 /* Prevent zoom on input focus in iOS */
 @supports (-webkit-touch-callout: none) {
-
   input[type="text"],
   input[type="number"],
   input[type="email"],
@@ -126,20 +121,10 @@ body {
   .high-contrast {
     filter: contrast(1.5) !important;
   }
-
-  /* Ensure text remains readable in high contrast */
-  .text-slate-100 {
-    color: #ffffff !important;
-  }
-
-  .text-slate-300 {
-    color: #e2e8f0 !important;
-  }
 }
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -152,22 +137,9 @@ body {
 
 /* Keyboard navigation focus styles */
 .keyboard-navigation *:focus {
-  outline: 3px solid #38bdf8 !important; /* sky-400 for better visibility */
+  outline: 3px solid #38bdf8 !important;
   outline-offset: 2px !important;
   box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.2) !important;
-}
-
-/* Screen reader only content */
-.sr-only {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
 }
 
 /* Focus visible improvements */
@@ -176,28 +148,11 @@ body {
   outline-offset: 2px;
 }
 
-/* ARIA live regions */
-[aria-live="polite"] {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-[aria-live="assertive"] {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
 /* Touch target size improvements */
-button, 
-a, 
-input, 
-select, 
+button,
+a,
+input,
+select,
 textarea {
   min-width: 44px;
   min-height: 44px;
@@ -211,7 +166,6 @@ textarea {
   box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.2) !important;
 }
 
-/* Fallback for browsers that don't support focus-visible */
 *:focus {
   outline: 2px solid #0ea5e9;
   outline-offset: 2px;
@@ -231,12 +185,12 @@ textarea {
 }
 
 @media (max-width: 640px) {
-  button, 
-  a, 
-  input, 
-  select, 
+  button,
+  a,
+  input,
+  select,
   textarea {
-    min-width: 48px; /* Increased for mobile specifically */
+    min-width: 48px;
     min-height: 48px;
   }
 }
@@ -262,13 +216,10 @@ legend {
   padding: 0;
   margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #e2e8f0;
 }
 
 /* Error and status accessibility */
 [role="alert"] {
-  background-color: #991b1b;
-  color: #ffffff;
   padding: 1rem;
   border-radius: 0.5rem;
   margin: 1rem 0;
@@ -279,7 +230,7 @@ legend {
   border-radius: 0.25rem;
 }
 
-/* Table accessibility for future use */
+/* Table styles - theme aware */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -293,9 +244,23 @@ td {
 }
 
 th {
-  background-color: #1e293b;
   font-weight: 600;
-  color: #ffffff;
+}
+
+/* Code blocks - theme aware */
+code {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+pre {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.875rem;
 }
 
 /* List accessibility */
@@ -306,24 +271,4 @@ ol {
 
 li {
   margin-bottom: 0.5rem;
-}
-
-/* Code accessibility */
-code {
-  background-color: #1e293b;
-  color: #ffffff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-family: monospace;
-  font-size: 0.875rem;
-}
-
-pre {
-  background-color: #1e293b;
-  color: #ffffff;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  font-family: monospace;
-  font-size: 0.875rem;
 }
