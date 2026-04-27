@@ -28,6 +28,7 @@ import { captureException } from './utils/errorTracker';
 import { envConfig } from './utils/env';
 import { config } from './config/appConfig';
 import { sanitizeString, sanitizeAlphanumeric, sanitizePositiveNumber, validationError, type ValidationError } from './utils/sanitize';
+import realTimeMonitoringRoutes from './routes/realTimeMonitoring';
 
 captureAndTrackConfig();
 
@@ -95,6 +96,7 @@ app.use(metricsCollector.middleware());
 app.use('/api/payment', tieredRateLimiter.middleware());
 
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/real-time-monitoring', realTimeMonitoringRoutes);
 app.use('/api/currency', currencyRoutes);
 app.use('/api/upgrade', upgradeRoutes);
 app.use('/api/providers', providerRoutes);

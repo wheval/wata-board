@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { Migration, MigrationResult, MigrationStatus } from './Migration';
-import * as crypto from 'crypto';
+import { createHash } from 'crypto';
 
 export class MigrationRunner {
   private pool: Pool;
@@ -100,7 +100,7 @@ export class MigrationRunner {
 
   private calculateMigrationChecksum(migration: Migration): string {
     const content = `${migration.id}:${migration.name}:${migration.timestamp.getTime()}`;
-    return crypto.createHash('sha256').update(content).digest('hex');
+    return createHash('sha256').update(content).digest('hex');
   }
 
   private async validateDependencies(migration: Migration): Promise<void> {

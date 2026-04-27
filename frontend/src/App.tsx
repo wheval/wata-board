@@ -15,6 +15,7 @@ import type { TransactionDetails } from './components/TransactionSuccess';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalErrorFallback } from './components/GlobalErrorFallback';
 const AnalyticsDashboard = lazy(() => import('./components/Analytics/Dashboard').then(module => ({ default: module.AnalyticsDashboard })));
+const RealTimeMonitoringDashboard = lazy(() => import('./components/RealTimeMonitoringDashboard'));
 import { logClientError } from './services/errorLoggingService';
 import { TransactionStatus } from './components/TransactionStatus';
 import { useRealtimeTransactions } from './hooks/useRealtimeTransactions';
@@ -403,6 +404,15 @@ export default function App() {
                 </div>
               }>
                 <AnalyticsDashboard />
+              </Suspense>
+            } />
+            <Route path="/monitoring" element={
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-[200px]">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
+                </div>
+              }>
+                <RealTimeMonitoringDashboard />
               </Suspense>
             } />
             <Route path="/privacy-policy" element={
